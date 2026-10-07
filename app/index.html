@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PFF Coach</title>
+  <meta name="description" content="Client intake, session logging and progress tracking for Pink Fitness Florida and private clients.">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#171415" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="PFF Coach">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=League+Spartan:wght@600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#view">Skip to content</a>
+  <nav class="appnav" aria-label="Main">
+    <a class="brand" href="#/" aria-label="PFF Coach home"><img src="assets/mark.png" alt="" width="40" height="40"><span>PFF Coach</span></a>
+    <a href="#/" data-nav="today"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></svg><span>Today</span></a>
+    <a href="#/clients" data-nav="clients"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16.5 14.6c2.6.2 4.4 1.9 5 4.9"/></svg><span>Clients</span></a>
+    <a href="#/exercises" data-nav="exercises"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/></svg><span>Exercises</span></a>
+    <a href="#/settings" data-nav="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M4.2 7.5l2 1.2M17.8 15.3l2 1.2M4.2 16.5l2-1.2M17.8 8.7l2-1.2"/></svg><span>Settings</span></a>
+  </nav>
+  <div class="storage-warning" role="note">This preview can't save to the device, so changes are lost when the window closes. Install the app from its own web address to keep data.</div>
+  <main id="view" tabindex="-1"></main>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

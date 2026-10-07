@@ -1,0 +1,6 @@
+# Built by build.py (and by the GitHub Pages workflow)
+app/js/
+app/sw.js
+preview/
+__pycache__/
+.DS_Store
