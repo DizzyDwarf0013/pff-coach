@@ -255,7 +255,7 @@ async function reviewScreen(root: HTMLElement, head: Raw, draft: ImportDraft) {
               <input type="date" data-k="date" value="${k.date}" aria-label="Class date">
               <div class="rs-body">
                 <span class="rs-title">${k.c.title || 'Group class'}${k.c.format ? html` <span class="muted">· ${k.c.format}</span>` : ''}</span>
-                <span class="rs-note">${k.c.exercises.map((e) => e.name + (e.detail ? ` (${e.detail})` : '')).join(', ')}</span>
+                <span class="rs-note">${k.c.exercises.map((e) => e.name + (e.detail ? ` (${e.detail})` : '') + (e.regression ? ` ↓ ${e.regression}` : '') + (e.progression ? ` ↑ ${e.progression}` : '')).join(' · ')}</span>
                 ${!k.date ? html`<span class="rs-flag">No date written${k.c.date_text ? ` (“${k.c.date_text}”)` : ''}. Add one to import it.</span>` : ''}
               </div>
             </li>`)}

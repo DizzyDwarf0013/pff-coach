@@ -121,7 +121,7 @@ export interface ClassPlan {
   date: string;
   title?: string;
   format?: string;
-  exercises: { exerciseId?: string; name: string; detail?: string }[];
+  exercises: { exerciseId?: string; name: string; section?: string; detail?: string; regression?: string; progression?: string }[];
   notes?: string;
   source?: 'import' | 'manual';
   createdAt: string;

@@ -110,11 +110,15 @@ export const TOOL = {
               items: {
                 type: 'object',
                 properties: {
+                  section: { ...str, description: 'The block this move is listed under, as written: e.g. "Warm-up", "Station 1", "Cardio", "Core".' },
                   name: { type: 'string' },
                   catalog_match: str,
-                  detail: { ...str, description: 'Reps, time, rounds, equipment or modifications for this move.' },
+                  category: { type: 'string', enum: ['Lower body', 'Upper body', 'Core', 'Cardio', 'Mobility'] },
+                  detail: { ...str, description: 'Reps, time, rounds or equipment for this move.' },
+                  regression: { ...str, description: 'Easier option, marked with a down arrow (↓) or "mod:".' },
+                  progression: { ...str, description: 'Harder option, marked with an up arrow (↑).' },
                 },
-                required: ['name', 'catalog_match', 'detail'],
+                required: ['section', 'name', 'catalog_match', 'category', 'detail', 'regression', 'progression'],
               },
             },
             notes: str,
@@ -146,6 +150,14 @@ export function systemPrompt(input: ExtractInput): string {
     `- Dates become YYYY-MM-DD. Today is ${today}. ${year} US date order (month/day).`,
     '- Put a session under the client it belongs to. A page with a class plan and no client names is a group class.',
     '- For catalog_match, use an exact name from the catalog only when it is clearly the same movement; otherwise null.',
+    '- A down arrow (↓) or "mod:" next to a movement is an easier modification (regression). An up arrow (↑) is a harder option (progression). Record them on that movement; they are not separate exercises.',
+    '- Ignore crossed-out or scribbled-over writing and use what replaced it. Ignore faint or mirror-image writing showing through from the other side of the paper.',
+    '- A name at the top of a page is the client for every session on that page.',
+    '- If a date has no year but another date on the same page does, use that year. Two-digit years like 24 mean 2024.',
+    '- Weights listed after a set count apply to the sets in order: "Row 2x10 20lbs 25lbs" is one set of 10 at 20 lb, then one set of 10 at 25 lb.',
+    '- Cardio machines (bike, elliptical, treadmill, rower) with minutes are measure "time" with seconds = minutes x 60. Put resistance, intervals and heart rate in notes.',
+    '- Coaching cues (e.g. "elbows turned out, go higher") go in that exercise\'s notes. Keep abbreviations you are unsure of as written.',
+    '- If arrows or boxes move a block of exercises to a different date and the meaning is unclear, keep the written date and say so in unclear.',
     '- If handwriting is ambiguous, give your best reading and add a short note to unclear.',
   ].join('\n');
 }

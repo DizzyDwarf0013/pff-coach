@@ -15,7 +15,7 @@ export interface XProfile {
   goals: string[]; medical: string | null; notes: string | null;
 }
 export interface XClient { name: string; email: string | null; phone: string | null; pink_fitness: boolean | null; profile: XProfile | null; sessions: XSession[]; measurements: XMeasurement[] }
-export interface XClass { date: string | null; date_text: string | null; title: string | null; format: string | null; exercises: { name: string; catalog_match: string | null; detail: string | null }[]; notes: string | null }
+export interface XClass { date: string | null; date_text: string | null; title: string | null; format: string | null; exercises: { section?: string | null; name: string; catalog_match: string | null; category?: Exercise['category']; detail: string | null; regression?: string | null; progression?: string | null }[]; notes: string | null }
 export interface PageResult { page_kind: string; clients: XClient[]; classes: XClass[]; unclear: string[] }
 
 // ---- the saved import draft ----
@@ -175,7 +175,7 @@ export function buildReview(draft: ImportDraft, clients: Client[], sessionsByCli
       const c = ch.classes[key] || {};
       const date = c.date ?? (xc.date || '');
       classes.push({ key, page: pi, c: xc, date, include: c.include ?? !!date });
-      xc.exercises.forEach((e) => noteExercise(e.name, e.catalog_match));
+      xc.exercises.forEach((e) => noteExercise(e.name, e.catalog_match, e.category || 'Mobility', 'reps'));
     });
   });
 
@@ -314,7 +314,7 @@ export async function saveReview(r: Review) {
     if (!rk.include || !rk.date) continue;
     const plan: ClassPlan = {
       id: uid(), date: rk.date, title: rk.c.title || undefined, format: rk.c.format || undefined,
-      exercises: rk.c.exercises.map((e) => ({ exerciseId: resolve(e.name, e.catalog_match)?.id, name: e.name, detail: e.detail || undefined })),
+      exercises: rk.c.exercises.map((e) => ({ exerciseId: resolve(e.name, e.catalog_match)?.id, name: e.name, section: e.section || undefined, detail: e.detail || undefined, regression: e.regression || undefined, progression: e.progression || undefined })),
       notes: rk.c.notes || undefined, source: 'import', createdAt: now, updatedAt: now,
     };
     await db.put('classes', plan);

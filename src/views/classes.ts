@@ -32,6 +32,16 @@ export async function classList({ root }: Ctx) {
   `.value;
 }
 
+function sections(p: ClassPlan): [string, ClassPlan['exercises']][] {
+  const out: [string, ClassPlan['exercises']][] = [];
+  for (const e of p.exercises) {
+    const name = e.section || '';
+    const last = out[out.length - 1];
+    if (last && last[0] === name) last[1].push(e); else out.push([name, [e]]);
+  }
+  return out;
+}
+
 export async function classDetail({ root, params }: Ctx) {
   const p = await db.get<ClassPlan>('classes', params.id);
   if (!p) { root.innerHTML = html`${topbar('Class not found', { back: '/classes', backLabel: 'Classes' })}`.value; return; }
@@ -39,9 +49,14 @@ export async function classDetail({ root, params }: Ctx) {
     ${topbar(p.title || 'Group class', { back: '/classes', backLabel: 'Classes', sub: fmtDate(p.date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) })}
     <section class="card">
       ${p.format ? html`<p><b>Format:</b> ${p.format}</p>` : ''}
-      <table class="table workout"><thead><tr><th>#</th><th>Exercise</th><th>Details</th></tr></thead>
-        <tbody>${p.exercises.map((e, i) => html`<tr><td class="n">${i + 1}</td><td><b>${e.name}</b></td><td>${e.detail || ''}</td></tr>`)}</tbody>
-      </table>
+      ${sections(p).map(([name, list]) => html`
+        ${name ? html`<h3 class="class-section">${name}</h3>` : ''}
+        <ul class="class-moves">${list.map((e) => html`
+          <li><b>${e.name}</b>${e.detail ? html` <span class="muted">${e.detail}</span>` : ''}
+            ${e.regression ? html`<span class="mod easier">Easier: ${e.regression}</span>` : ''}
+            ${e.progression ? html`<span class="mod harder">Harder: ${e.progression}</span>` : ''}
+          </li>`)}
+        </ul>`)}
       ${p.notes ? html`<p class="fineprint">${p.notes}</p>` : ''}
       ${p.source === 'import' ? html`<p class="fineprint">Imported from her notebook.</p>` : ''}
     </section>
