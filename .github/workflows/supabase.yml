@@ -36,6 +36,19 @@ jobs:
         run: |
           ok=true
           [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::warning::SUPABASE_ACCESS_TOKEN secret is missing, so nothing was deployed."; ok=false; }
+          tok=$(printf %s "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')
+          if [ -n "$tok" ] && [[ "$tok" != sbp_* ]]; then
+            case "$tok" in
+              sb_secret_*) kind="a project secret key (sb_secret_…)";;
+              sb_publishable_*) kind="the publishable key (sb_publishable_…)";;
+              eyJ*) kind="a project API key (eyJ…)";;
+              *) kind="something that isn't a Supabase access token";;
+            esac
+            echo "::error::SUPABASE_ACCESS_TOKEN looks like $kind. It needs a personal access token starting with sbp_, created at supabase.com/dashboard/account/tokens."
+            exit 1
+          fi
+          echo "::add-mask::$tok"
+          echo "SUPABASE_ACCESS_TOKEN=$tok" >> "$GITHUB_ENV"
           [ -n "$ANTHROPIC_API_KEY" ] || echo "::warning::ANTHROPIC_API_KEY secret is missing. Pages can't be read until it's added."
           [ -n "$ALLOWED_EMAILS" ] || echo "::warning::ALLOWED_EMAILS secret is missing. Nobody can read pages until it lists her email."
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
@@ -47,8 +60,6 @@ jobs:
 
       - name: Deploy the extract function
         if: steps.secrets.outputs.ok == 'true'
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           # Server-side bundling first; fall back to bundling with Docker on the runner.
           if out=$(supabase functions deploy extract --project-ref "$PROJECT_REF" --no-verify-jwt --use-api 2>&1); then echo "$out"; exit 0; fi
@@ -62,7 +73,6 @@ jobs:
       - name: Set function secrets
         if: steps.secrets.outputs.ok == 'true'
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ALLOWED_EMAILS: ${{ secrets.ALLOWED_EMAILS }}
         run: |
@@ -76,8 +86,6 @@ jobs:
 
       - name: Point sign-in emails at the app
         if: steps.secrets.outputs.ok == 'true'
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           code=$(curl -sS -o /tmp/auth.json -w '%{http_code}' -X PATCH "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
