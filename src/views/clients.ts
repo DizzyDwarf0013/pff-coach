@@ -15,7 +15,7 @@ export async function clientsList({ root, query }: Ctx) {
   const filter = query.get('f') || 'active';
 
   root.innerHTML = html`
-    ${topbar('Clients', { actions: html`<a class="btn primary" href="#/clients/new">New client</a>` })}
+    ${topbar('Clients', { actions: html`<a class="btn ghost" href="#/import">Import</a><a class="btn primary" href="#/clients/new">New client</a>` })}
     <div class="toolbar">
       <input type="search" class="search" placeholder="Search clients" aria-label="Search clients">
       <div class="seg compact" role="group" aria-label="Filter clients">

@@ -1,0 +1,6 @@
+# Supabase CLI settings for the PFF Coach backend.
+project_id = "pff-coach"
+
+[functions.extract]
+# The function checks the sign-in token itself (works with the new publishable keys).
+verify_jwt = false

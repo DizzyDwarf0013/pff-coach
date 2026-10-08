@@ -6,10 +6,11 @@ import type { Client, Settings } from '../types.js';
 import { formValues, text, toggle, topbar } from '../components.js';
 import { mapClients, parseCSV } from '../csv.js';
 import { loadSample, removeSample } from '../seed.js';
-import { $, PREVIEW, confirmDialog, downloadFile, html, toast, today } from '../util.js';
+import { authForm, bindAuthForm, currentEmail, signOut } from '../auth.js';
+import { $, PREVIEW, confirmDialog, downloadFile, html, raw, toast, today } from '../util.js';
 
 export async function settingsView({ root }: Ctx) {
-  const [s, clients] = await Promise.all([db.getSettings(), db.getClients()]);
+  const [s, clients, email] = await Promise.all([db.getSettings(), db.getClients(), currentEmail()]);
   const hasSample = clients.some((c) => c.source === 'sample');
   const persisted = db.persistent && navigator.storage?.persisted ? await navigator.storage.persisted() : false;
   const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
@@ -32,8 +33,32 @@ export async function settingsView({ root }: Ctx) {
       </section>
     </form>
 
+    <section class="card account">
+      <h2>Account</h2>
+      ${PREVIEW ? html`<p class="fineprint">Signing in isn't available in this preview.</p>` : email ? html`
+        <p>Signed in as <b>${email}</b>. Importing notebook pages uses this account.</p>
+        <div class="row-end"><button class="btn ghost" data-act="signout">Sign out</button></div>`
+      : authForm('Sign in to read notebook pages. Create the account once, then sign in with the same email and password on each device.')}
+    </section>
+
     <section class="card">
-      <h2>Import clients</h2>
+      <h2>Import from notebook</h2>
+      <p>Photograph notebook pages or choose PDFs. Clients, sessions, measurements and class plans are read from each page, and you check them before anything is saved.</p>
+      <div class="grid">
+        <label class="field">
+          <span class="label">Reading model</span>
+          <select name="importModel">
+            <option value="sonnet" ${s.importModel === 'sonnet' ? raw('selected') : ''}>Sonnet 5.5 (most accurate)</option>
+            <option value="haiku" ${s.importModel === 'haiku' ? raw('selected') : ''}>Haiku 5.5 (cheapest)</option>
+          </select>
+          <span class="hint">Sonnet costs about 2–3¢ a page and reads messy handwriting best. Haiku costs well under 1¢ a page.</span>
+        </label>
+      </div>
+      <div class="row-end"><a class="btn primary" href="#/import">Import notebook pages</a></div>
+    </section>
+
+    <section class="card">
+      <h2>Import a client list</h2>
       <p>Bring in a client list exported from the website or a spreadsheet, saved as CSV. Columns for name, email and phone are matched automatically. Clients whose email is already here are skipped.</p>
       <form class="import-form">
         ${toggle('pff', 'Mark imported clients as Pink Fitness', true)}
@@ -69,16 +94,24 @@ export async function settingsView({ root }: Ctx) {
       <p>Deletes every client, session, measurement and custom exercise from this device.</p>
       <div class="row-end"><button class="btn danger" data-act="erase">Erase all data</button></div>
     </section>
-    <p class="fineprint center">PFF Coach · version 1.0</p>`.value;
+    <p class="fineprint center">PFF Coach · version 1.1</p>`.value;
 
   // profile
   const pf = $('.profile-form', root) as HTMLFormElement;
   pf.addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = formValues(pf);
-    const next: Settings = { trainerName: f.str('trainerName'), businessName: f.str('businessName'), unbrandedTitle: f.str('unbrandedTitle'), website: f.str('website'), contactEmail: f.str('contactEmail'), contactPhone: f.str('contactPhone') };
+    const next: Settings = { ...s, trainerName: f.str('trainerName'), businessName: f.str('businessName'), unbrandedTitle: f.str('unbrandedTitle'), website: f.str('website'), contactEmail: f.str('contactEmail'), contactPhone: f.str('contactPhone') };
     await db.saveSettings(next);
     toast('Details saved');
+  });
+
+  // account and import model
+  bindAuthForm(root, () => refresh());
+  root.querySelector<HTMLSelectElement>('select[name="importModel"]')?.addEventListener('change', async (e) => {
+    const cur = await db.getSettings();
+    await db.saveSettings({ ...cur, importModel: (e.target as HTMLSelectElement).value as Settings['importModel'] });
+    toast('Reading model saved');
   });
 
   // import
@@ -134,7 +167,9 @@ export async function settingsView({ root }: Ctx) {
     const b = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
     if (!b) return;
     const act = b.dataset.act;
-    if (act === 'backup') {
+    if (act === 'signout') {
+      await signOut(); toast('Signed out'); refresh();
+    } else if (act === 'backup') {
       const data = await db.exportAll();
       const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
       const name = `pff-coach-backup-${today()}.json`;

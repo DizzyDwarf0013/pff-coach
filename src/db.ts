@@ -1,15 +1,15 @@
 // IndexedDB storage with an in-memory fallback (for sandboxed previews where IndexedDB is blocked).
-import type { Client, Exercise, Measurement, Session, Settings } from './types.js';
+import type { ClassPlan, Client, Exercise, Measurement, Session, Settings } from './types.js';
 import { DEFAULT_SETTINGS } from './types.js';
 
-type StoreName = 'clients' | 'sessions' | 'measurements' | 'exercises' | 'meta';
-const STORES: StoreName[] = ['clients', 'sessions', 'measurements', 'exercises', 'meta'];
+type StoreName = 'clients' | 'sessions' | 'measurements' | 'exercises' | 'classes' | 'meta';
+const STORES: StoreName[] = ['clients', 'sessions', 'measurements', 'exercises', 'classes', 'meta'];
 const DB_NAME = 'pff-coach';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbp: Promise<IDBDatabase | null> | null = null;
 const memory: Record<StoreName, Map<string, any>> = {
-  clients: new Map(), sessions: new Map(), measurements: new Map(), exercises: new Map(), meta: new Map(),
+  clients: new Map(), sessions: new Map(), measurements: new Map(), exercises: new Map(), classes: new Map(), meta: new Map(),
 };
 export let persistent = true;
 
@@ -32,6 +32,7 @@ function open(): Promise<IDBDatabase | null> {
         }
         if (!db.objectStoreNames.contains('exercises')) db.createObjectStore('exercises', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+        if (!db.objectStoreNames.contains('classes')) db.createObjectStore('classes', { keyPath: 'id' });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => { persistent = false; resolve(null); };
@@ -146,6 +147,11 @@ export async function deleteExercise(id: string) {
 }
 export function invalidateExercises() { exerciseCache = null; }
 
+export async function allClasses(): Promise<ClassPlan[]> {
+  const list = await all<ClassPlan>('classes');
+  return list.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+}
+
 export async function getSettings(): Promise<Settings> {
   const row = await get<{ key: string; value: Settings }>('meta', 'settings');
   return { ...DEFAULT_SETTINGS, ...(row?.value || {}) };
@@ -177,15 +183,18 @@ export interface Backup {
   sessions: Session[];
   measurements: Measurement[];
   exercises: Exercise[];
+  classes?: ClassPlan[];
   meta: { key: string; value: unknown }[];
 }
 
 export async function exportAll(): Promise<Backup> {
-  const [clients, sessions, measurements, ex, meta] = await Promise.all([
+  const [clients, sessions, measurements, ex, classes, meta] = await Promise.all([
     all<Client>('clients'), all<Session>('sessions'), all<Measurement>('measurements'),
-    all<Exercise>('exercises'), all<{ key: string; value: unknown }>('meta'),
+    all<Exercise>('exercises'), all<ClassPlan>('classes'), all<{ key: string; value: unknown }>('meta'),
   ]);
-  return { app: 'pff-coach', version: 1, exportedAt: new Date().toISOString(), clients, sessions, measurements, exercises: ex, meta };
+  // Sign-in and in-progress imports stay on the device they belong to.
+  const portable = meta.filter((m) => m.key !== 'auth' && m.key !== 'importDraft');
+  return { app: 'pff-coach', version: 1, exportedAt: new Date().toISOString(), clients, sessions, measurements, exercises: ex, classes, meta: portable };
 }
 
 export async function importAll(b: Backup, mode: 'replace' | 'merge') {
@@ -195,6 +204,7 @@ export async function importAll(b: Backup, mode: 'replace' | 'merge') {
   await putMany('sessions', b.sessions || []);
   await putMany('measurements', b.measurements || []);
   await putMany('exercises', b.exercises || []);
-  await putMany('meta', b.meta || []);
+  await putMany('classes', b.classes || []);
+  await putMany('meta', (b.meta || []).filter((m) => m.key !== 'auth' && m.key !== 'importDraft'));
   exerciseCache = null;
 }

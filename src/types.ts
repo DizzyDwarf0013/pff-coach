@@ -116,6 +116,20 @@ export interface Measurement {
   sessionId?: string;
 }
 
+export interface ClassPlan {
+  id: string;
+  date: string;
+  title?: string;
+  format?: string;
+  exercises: { exerciseId?: string; name: string; detail?: string }[];
+  notes?: string;
+  source?: 'import' | 'manual';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ImportModel = 'sonnet' | 'haiku';
+
 export interface Settings {
   trainerName: string;
   businessName: string;
@@ -123,6 +137,7 @@ export interface Settings {
   contactEmail: string;
   contactPhone: string;
   website: string;
+  importModel: ImportModel;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -132,4 +147,5 @@ export const DEFAULT_SETTINGS: Settings = {
   contactEmail: '',
   contactPhone: '',
   website: 'pinkfitnessflorida.com',
+  importModel: 'sonnet',
 };

@@ -10,6 +10,9 @@ import { newSession, sessionEditor } from './views/session.js';
 import { progressReport, sessionSheet } from './views/report.js';
 import { exerciseForm, exerciseList } from './views/exercises.js';
 import { settingsView } from './views/settings.js';
+import { importView } from './views/import.js';
+import { classDetail, classList } from './views/classes.js';
+import { consumeRedirect } from './auth.js';
 
 route('/', 'today', home);
 route('/clients', 'clients', clientsList);
@@ -24,8 +27,12 @@ route('/exercises', 'exercises', exerciseList);
 route('/exercises/new', 'exercises', exerciseForm);
 route('/exercises/:id', 'exercises', exerciseForm);
 route('/settings', 'settings', settingsView);
+route('/import', 'clients', importView);
+route('/classes', 'classes', classList);
+route('/classes/:id', 'classes', classDetail);
 
 async function start() {
+  await consumeRedirect();
   await ensureCatalog();
   if (PREVIEW && !(await db.getMeta('previewSeeded'))) { await loadSample(); await db.setMeta('previewSeeded', true); }
   if (!db.persistent) document.body.classList.add('no-storage');
