@@ -1,4 +1,5 @@
 // App entry: routes, shell, storage and offline setup.
+import './compat.js'; // must stay first: fills in features older iPads lack
 import { currentPath, refresh, render, route } from './router.js';
 import * as db from './db.js';
 import { ensureCatalog, loadSample } from './seed.js';
@@ -33,6 +34,7 @@ route('/classes', 'classes', classList);
 route('/classes/:id', 'classes', classDetail);
 
 async function start() {
+  document.documentElement.classList.add('booted');
   await consumeRedirect();
   await ensureCatalog();
   if (PREVIEW && !(await db.getMeta('previewSeeded'))) { await loadSample(); await db.setMeta('previewSeeded', true); }
@@ -51,4 +53,9 @@ async function start() {
   }
 }
 
-start();
+start().catch((e) => {
+  // index.html shows a readable message instead of a blank screen.
+  const show = (window as any).__pffBootError;
+  if (typeof show === 'function') show(e);
+  else console.error(e);
+});

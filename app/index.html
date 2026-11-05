@@ -18,6 +18,37 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=League+Spartan:wght@600;700;800&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // If the app can't start (an old browser, or an error while loading), say so on screen
+    // instead of leaving a blank page. Written in old-style JavaScript so any iPad can run it.
+    (function () {
+      function iosVersion() {
+        var m = navigator.userAgent.match(/OS (\d+)_(\d+)(?:_(\d+))? like Mac OS X/);
+        return m ? m[1] + '.' + m[2] + (m[3] ? '.' + m[3] : '') : '';
+      }
+      function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+      function show(detail, tooOld) {
+        var v = document.getElementById('view');
+        if (!v || v.children.length) return; // the app already drew something
+        var ios = iosVersion();
+        v.innerHTML = '<div class="boot-error"><h1>PFF Coach couldn’t start</h1>' +
+          (tooOld
+            ? '<p>This device’s browser is too old to run the app' + (ios ? ' (iOS ' + esc(ios) + ')' : '') + '. It needs iOS 12 or later. Update the device in Settings → General → Software Update if it offers an update.</p>'
+            : '<p>Try closing the app and opening it again. If this keeps happening, send a screenshot of this screen to Blake.</p>') +
+          '<p class="muted small">' + esc(detail || '') + (ios ? '<br>iOS ' + esc(ios) : '') + '</p></div>';
+      }
+      window.__pffBootError = function (e) { show(e && (e.message || e) || 'Unknown error', false); };
+      window.addEventListener('error', function (e) {
+        if (document.documentElement.className.indexOf('booted') !== -1) return;
+        show((e && e.message ? e.message : 'Script error') + (e && e.filename ? ' (' + String(e.filename).split('/').pop() + ':' + e.lineno + ')' : ''), false);
+      });
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (document.documentElement.className.indexOf('booted') === -1) show('The app’s code didn’t run.', !('noModule' in document.createElement('script')));
+        }, 4000);
+      });
+    })();
+  </script>
 </head>
 <body>
   <a class="skip" href="#view">Skip to content</a>

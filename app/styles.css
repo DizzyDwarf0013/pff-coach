@@ -71,6 +71,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
   display: flex; justify-content: space-around;
   height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b);
+  background: var(--card); /* older iPads without color-mix() */
   background: color-mix(in srgb, var(--card) 92%, transparent);
   backdrop-filter: saturate(1.4) blur(16px); -webkit-backdrop-filter: saturate(1.4) blur(16px);
   border-top: 1px solid var(--line);
@@ -184,7 +185,7 @@ input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea 
   width: 100%; min-height: 46px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--card); padding: 10px 12px;
 }
 textarea { resize: vertical; line-height: 1.4; }
-input:focus, select:focus, textarea:focus { border-color: var(--pink); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--pink) 35%, transparent); }
+input:focus, select:focus, textarea:focus { border-color: var(--pink); outline: none; box-shadow: 0 0 0 3px rgba(238,111,187,.35); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pink) 35%, transparent); }
 .unit-wrap { position: relative; display: block; }
 .unit-wrap input { padding-right: 46px; }
 .unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .9rem; pointer-events: none; }
@@ -205,7 +206,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pink); outline: 
 .chips input:focus-visible + span { outline: 3px solid var(--focus); }
 .form-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 18px 0 24px; }
 .form-actions .spacer { flex: 1; }
-.form-actions.sticky { position: sticky; bottom: calc(var(--nav-h) + var(--safe-b) + 8px); background: color-mix(in srgb, var(--page) 90%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 10px; margin: 18px -10px 24px; border-radius: var(--radius-lg); z-index: 5; }
+.form-actions.sticky { position: -webkit-sticky; position: sticky; bottom: calc(var(--nav-h) + var(--safe-b) + 8px); background: var(--page); background: color-mix(in srgb, var(--page) 90%, transparent); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 10px; margin: 18px -10px 24px; border-radius: var(--radius-lg); z-index: 5; }
 @media (min-width: 900px) { .form-actions.sticky { bottom: 12px; } }
 
 /* ---------- today ---------- */
@@ -349,7 +350,7 @@ dialog.picker[open] { display: flex; flex-direction: column; }
 .tag.good { background: var(--good-bg); color: var(--good-ink); }
 
 /* ---------- settings ---------- */
-.danger-zone { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+.danger-zone { border-color: var(--line); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
 .import-preview { margin-top: 12px; }
 
 /* ---------- toast ---------- */
@@ -422,7 +423,7 @@ dialog.picker[open] { display: flex; flex-direction: column; }
 .thumbs img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; background: var(--line); }
 .thumbs .thumb-label { font-size: .85rem; font-weight: 700; color: var(--ink-2); }
 .thumbs li.done .thumb-label { color: var(--good-ink); }
-.thumbs li.error { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.thumbs li.error { border-color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
 .thumbs li.error .thumb-label { color: var(--danger); }
 .thumb-err { font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }
 .rc { padding: 14px 16px; }
@@ -473,3 +474,35 @@ dialog.picker[open] { display: flex; flex-direction: column; }
 .sync-line[data-tone="warn"] { color: var(--review-ink); }
 .sync-line[data-tone="muted"] { color: var(--muted); }
 .sync-status { font-weight: 700; font-size: .95rem; margin: 4px 0 0; }
+
+/* ---------- older iPads (iOS 12 to 15) ---------- */
+/* <dialog> stand-in for Safari before 15.4 (see src/compat.ts). */
+dialog:not([open]) { display: none; }
+.dialog-polyfill dialog.dlg-modal { display: block; position: fixed; z-index: 1001; top: 50%; left: 50%; margin: 0; -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%); overflow: auto; -webkit-overflow-scrolling: touch; }
+.dialog-polyfill dialog.picker.dlg-modal { display: flex; flex-direction: column; overflow: hidden; }
+@media (max-width: 699px) {
+  .dialog-polyfill dialog.picker.dlg-modal { top: auto; bottom: 0; left: 0; -webkit-transform: none; transform: none; }
+}
+.dlg-backdrop { position: fixed; z-index: 1000; top: 0; right: 0; bottom: 0; left: 0; background: rgba(35,31,32,.45); }
+
+/* Flexbox gap arrived in Safari 14.5, the same release as `inset`, so this block
+   only applies to older iPads. Margins stand in for the gaps that matter most. */
+@supports not (inset: 0) {
+  .row-end > *, .topbar-actions > *, .form-actions > *, .toolbar > *, .chips > *, .item-actions > *,
+  .profile-actions > *, .legend > *, .tabs > *, .rc-opts > *, .session-meta > * { margin-right: 8px; margin-bottom: 6px; }
+  .row-end > *:last-child, .topbar-actions > *:last-child { margin-right: 0; }
+  .seg > * { margin: 2px; }
+  .row > * + *, .card-head > * + *, .item-head > * + *, .toggle > * + *, .check-inline > * + *,
+  .rc-head > * + *, .topbar-row > * + *, .nx-list li > * + *,
+  .btn > * + *, .topbar .back > * + *, .legend .key > * + *, .chart-plot .tip div > * + * { margin-left: 8px; }
+  .appnav a > * + *, .quick-btn > * + *, .choice > * + *, .field > * + *, .rs-body > * + *, .thumbs li > * + * { margin-top: 4px; }
+  .seg input, .chips input { top: 0; left: 0; width: 100%; height: 100%; }
+}
+@media (min-width: 700px) {
+  @supports not (inset: 0) { .appnav a > * + * { margin-top: 0; margin-left: 12px; } }
+}
+
+/* Shown by index.html when the app can't start. */
+.boot-error { max-width: 560px; margin: 15vh auto 0; padding: 24px; text-align: center; }
+.boot-error h1 { font-size: 1.6rem; margin-bottom: 12px; }
+.boot-error .small { font-size: .85rem; margin-top: 16px; word-break: break-word; }

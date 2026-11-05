@@ -71,6 +71,7 @@ On a report or workout sheet, tap **Print or save PDF**. In the print preview, t
 - `python3 build_preview.py` builds a single-file preview page (used for the claude.ai preview only).
 - The server function lives in `supabase/functions/extract/`. Test it with `node --experimental-strip-types supabase/functions/extract/handler.test.ts`.
 - `app/vendor/pdfjs/` is Mozilla's pdf.js (Apache-2.0), used to turn PDF pages into images in the browser.
+- **Older iPads.** The app runs on iOS 12 and later (for example an iPad mini 2, 3 or 4). The TypeScript compiles to ES2019, `src/compat.ts` fills in missing browser features (dialogs, `structuredClone`, `File.text()`), and `styles.css` has fallbacks at the end for older Safari. Avoid newer syntax in `index.html`'s inline script. Reading PDFs needs a recent iOS; photos work everywhere. If the app can't start, it shows a message with the error and the iOS version instead of a blank page.
 - The data model is in `src/types.ts`, intake rules are in `src/logic.ts`, and the exercise catalog is in `src/seed.ts`.
 
 ## Phase 2 roadmap

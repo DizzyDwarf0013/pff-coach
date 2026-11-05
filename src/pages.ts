@@ -64,7 +64,7 @@ async function loadPdfJs() {
 
 async function* pdfPages(file: File, limit: number): AsyncGenerator<PreparedPage> {
   let lib: any;
-  try { lib = await loadPdfJs(); } catch { throw new Error('The PDF reader didn\'t load. Check the connection and try again.'); }
+  try { lib = await loadPdfJs(); } catch { throw new Error('The PDF reader didn\'t load. Check the connection and try again. On an older iPad, take photos of the pages instead.'); }
   let doc: any;
   const task = lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
   try { doc = await task.promise; }
