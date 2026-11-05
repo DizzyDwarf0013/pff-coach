@@ -17,6 +17,7 @@ export interface AuthSession {
   refresh_token: string;
   expires_at: number; // seconds since epoch
   email: string;
+  user_id?: string;
 }
 
 export class AuthError extends Error {}
@@ -54,6 +55,7 @@ function fromTokenResponse(d: any): AuthSession {
     refresh_token: d.refresh_token,
     expires_at: d.expires_at || Math.floor(Date.now() / 1000) + (d.expires_in || 3600),
     email: d.user?.email || '',
+    user_id: d.user?.id,
   };
 }
 
@@ -90,6 +92,7 @@ export async function session(): Promise<AuthSession | null> {
     const d = await call('token?grant_type=refresh_token', { refresh_token: cached.refresh_token });
     const next = fromTokenResponse(d);
     if (!next.email) next.email = cached.email;
+    if (!next.user_id) next.user_id = cached.user_id;
     await store(next);
     return next;
   } catch (e) {
@@ -98,6 +101,41 @@ export async function session(): Promise<AuthSession | null> {
     await store(null);
     return null;
   }
+}
+
+/** The signed-in account's id, looked up once if an older session didn't store it. */
+export async function userId(): Promise<string | null> {
+  const s = await session();
+  if (!s) return null;
+  if (s.user_id) return s.user_id;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${s.access_token}` } });
+    if (!res.ok) return null;
+    const u = await res.json();
+    await store({ ...s, user_id: u.id, email: s.email || u.email });
+    return u.id || null;
+  } catch { return null; }
+}
+
+/** Calls the database REST API as the signed-in user. Returns parsed JSON, or throws with a readable message. */
+export async function rest<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
+  const s = await session();
+  if (!s) throw new AuthError('Sign in to sync.');
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      method: init.method || 'GET',
+      headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${s.access_token}`, 'content-type': 'application/json', ...(init.headers || {}) },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    });
+  } catch {
+    throw new Error('offline');
+  }
+  const data = await res.json().catch(() => null);
+  if (res.status === 401) { await store(null); throw new AuthError('Your sign-in expired. Sign in again to keep syncing.'); }
+  if (res.status === 404 || res.status === 503 && /schema cache/i.test(data?.message || '')) throw new Error('Sync isn’t set up on the server yet.');
+  if (!res.ok) throw new Error(data?.message || `The server returned an error (${res.status}).`);
+  return data as T;
 }
 
 export async function currentEmail(): Promise<string | null> {
@@ -119,7 +157,7 @@ export async function consumeRedirect(): Promise<void> {
     const token = p.get('access_token')!;
     const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_KEY, authorization: `Bearer ${token}` } });
     const user = res.ok ? await res.json() : {};
-    await store({ access_token: token, refresh_token: p.get('refresh_token') || '', expires_at: Number(p.get('expires_at')) || Math.floor(Date.now() / 1000) + Number(p.get('expires_in') || 3600), email: user.email || '' });
+    await store({ access_token: token, refresh_token: p.get('refresh_token') || '', expires_at: Number(p.get('expires_at')) || Math.floor(Date.now() / 1000) + Number(p.get('expires_in') || 3600), email: user.email || '', user_id: user.id });
     setTimeout(() => toast('Email confirmed. You’re signed in.'), 300);
   } catch {
     setTimeout(() => toast('Email confirmed. Sign in to continue.'), 300);

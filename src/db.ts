@@ -2,14 +2,19 @@
 import type { ClassPlan, Client, Exercise, Measurement, Session, Settings } from './types.js';
 import { DEFAULT_SETTINGS } from './types.js';
 
-type StoreName = 'clients' | 'sessions' | 'measurements' | 'exercises' | 'classes' | 'meta';
-const STORES: StoreName[] = ['clients', 'sessions', 'measurements', 'exercises', 'classes', 'meta'];
+type StoreName = 'clients' | 'sessions' | 'measurements' | 'exercises' | 'classes' | 'meta' | 'outbox';
+const STORES: StoreName[] = ['clients', 'sessions', 'measurements', 'exercises', 'classes', 'meta', 'outbox'];
+/** Stores whose records sync to her account (plus the settings row in meta). */
+export const SYNCED = ['clients', 'sessions', 'measurements', 'exercises', 'classes'] as const;
+export type SyncedStore = (typeof SYNCED)[number] | 'settings';
+export interface OutboxEntry { key: string; store: SyncedStore; id: string; deleted: boolean; at: string }
+export interface WriteOpts { track?: boolean }
 const DB_NAME = 'pff-coach';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbp: Promise<IDBDatabase | null> | null = null;
 const memory: Record<StoreName, Map<string, any>> = {
-  clients: new Map(), sessions: new Map(), measurements: new Map(), exercises: new Map(), classes: new Map(), meta: new Map(),
+  clients: new Map(), sessions: new Map(), measurements: new Map(), exercises: new Map(), classes: new Map(), meta: new Map(), outbox: new Map(),
 };
 export let persistent = true;
 
@@ -33,6 +38,7 @@ function open(): Promise<IDBDatabase | null> {
         if (!db.objectStoreNames.contains('exercises')) db.createObjectStore('exercises', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
         if (!db.objectStoreNames.contains('classes')) db.createObjectStore('classes', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('outbox')) db.createObjectStore('outbox', { keyPath: 'key' });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => { persistent = false; resolve(null); };
@@ -52,7 +58,24 @@ function wrap<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-const keyOf = (store: StoreName, v: any) => (store === 'meta' ? v.key : v.id);
+const keyOf = (store: StoreName, v: any) => (store === 'meta' || store === 'outbox' ? v.key : v.id);
+
+/** Which synced record a local write touches, if any. */
+function syncTarget(store: StoreName, id: string): { store: SyncedStore; id: string } | null {
+  if ((SYNCED as readonly string[]).includes(store)) return { store: store as SyncedStore, id };
+  if (store === 'meta' && id === 'settings') return { store: 'settings', id: 'settings' };
+  return null;
+}
+
+let changeTimer: number | undefined;
+async function track(store: StoreName, ids: string[], deleted: boolean) {
+  const at = new Date().toISOString();
+  const entries = ids.map((id) => syncTarget(store, id)).filter(Boolean).map((t) => ({ key: `${t!.store}/${t!.id}`, store: t!.store, id: t!.id, deleted, at }));
+  if (!entries.length) return;
+  await rawPutMany('outbox', entries);
+  window.clearTimeout(changeTimer);
+  changeTimer = window.setTimeout(() => document.dispatchEvent(new CustomEvent('local-change')), 50);
+}
 
 export async function all<T>(store: StoreName): Promise<T[]> {
   const db = await open();
@@ -72,14 +95,7 @@ export async function byClient<T>(store: 'sessions' | 'measurements', clientId: 
   return wrap(db.transaction(store).objectStore(store).index('clientId').getAll(clientId)) as Promise<T[]>;
 }
 
-export async function put<T>(store: StoreName, value: T): Promise<T> {
-  const db = await open();
-  if (!db) { memory[store].set(keyOf(store, value), structuredClone(value)); return value; }
-  await wrap(db.transaction(store, 'readwrite').objectStore(store).put(value as any));
-  return value;
-}
-
-export async function putMany(store: StoreName, values: any[]): Promise<void> {
+async function rawPutMany(store: StoreName, values: any[]): Promise<void> {
   if (!values.length) return;
   const db = await open();
   if (!db) { values.forEach((v) => memory[store].set(keyOf(store, v), structuredClone(v))); return; }
@@ -92,10 +108,26 @@ export async function putMany(store: StoreName, values: any[]): Promise<void> {
   });
 }
 
-export async function del(store: StoreName, id: string): Promise<void> {
+async function rawDel(store: StoreName, id: string): Promise<void> {
   const db = await open();
   if (!db) { memory[store].delete(id); return; }
   await wrap(db.transaction(store, 'readwrite').objectStore(store).delete(id));
+}
+
+export async function put<T>(store: StoreName, value: T, opts: WriteOpts = {}): Promise<T> {
+  await rawPutMany(store, [value]);
+  if (opts.track !== false) await track(store, [keyOf(store, value)], false);
+  return value;
+}
+
+export async function putMany(store: StoreName, values: any[], opts: WriteOpts = {}): Promise<void> {
+  await rawPutMany(store, values);
+  if (opts.track !== false) await track(store, values.map((v) => keyOf(store, v)), false);
+}
+
+export async function del(store: StoreName, id: string, opts: WriteOpts = {}): Promise<void> {
+  await rawDel(store, id);
+  if (opts.track !== false) await track(store, [id], true);
 }
 
 export async function clearAll(): Promise<void> {
@@ -167,11 +199,11 @@ export async function setMeta<T>(key: string, value: T) {
   await put('meta', { key, value });
 }
 
-export async function deleteClientCascade(clientId: string) {
+export async function deleteClientCascade(clientId: string, opts: WriteOpts = {}) {
   const [s, m] = await Promise.all([byClient<Session>('sessions', clientId), byClient<Measurement>('measurements', clientId)]);
-  for (const x of s) await del('sessions', x.id);
-  for (const x of m) await del('measurements', x.id);
-  await del('clients', clientId);
+  for (const x of s) await del('sessions', x.id, opts);
+  for (const x of m) await del('measurements', x.id, opts);
+  await del('clients', clientId, opts);
 }
 
 // ---- backup ----
@@ -195,6 +227,36 @@ export async function exportAll(): Promise<Backup> {
   // Sign-in and in-progress imports stay on the device they belong to.
   const portable = meta.filter((m) => m.key !== 'auth' && m.key !== 'importDraft');
   return { app: 'pff-coach', version: 1, exportedAt: new Date().toISOString(), clients, sessions, measurements, exercises: ex, classes, meta: portable };
+}
+
+// ---- sync helpers ----
+export const outbox = () => all<OutboxEntry>('outbox');
+export async function clearOutboxEntry(e: OutboxEntry) {
+  const cur = await get<OutboxEntry>('outbox', e.key);
+  if (cur && cur.at === e.at) await rawDel('outbox', e.key); // a newer edit stays queued
+}
+export async function clearOutbox() {
+  for (const e of await outbox()) await rawDel('outbox', e.key);
+}
+/** Reads the local copy of a synced record (settings lives in meta). */
+export async function readSynced(store: SyncedStore, id: string): Promise<any | undefined> {
+  if (store === 'settings') return (await get<{ key: string; value: Settings }>('meta', 'settings'))?.value;
+  return get(store, id);
+}
+/** Applies a change that came from the server, without queueing it to be sent back. */
+export async function applyRemote(store: SyncedStore, id: string, data: any | null): Promise<boolean> {
+  const before = await readSynced(store, id);
+  if (data === null) {
+    if (before === undefined) return false;
+    if (store === 'settings') return false;
+    await rawDel(store, id);
+  } else {
+    if (before !== undefined && JSON.stringify(before) === JSON.stringify(data)) return false;
+    if (store === 'settings') await rawPutMany('meta', [{ key: 'settings', value: data }]);
+    else await rawPutMany(store, [data]);
+  }
+  if (store === 'exercises') exerciseCache = null;
+  return true;
 }
 
 export async function importAll(b: Backup, mode: 'replace' | 'merge') {

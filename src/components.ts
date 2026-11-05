@@ -114,3 +114,8 @@ export function formValues(form: HTMLFormElement) {
     has: (k: string) => fd.has(k),
   };
 }
+
+/** One-line sync status; call bindSyncLine(root) after inserting so it stays current. */
+export function syncLine(): Raw {
+  return html`<span class="sync-line" aria-live="polite"></span>`;
+}

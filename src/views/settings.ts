@@ -3,10 +3,12 @@ import type { Ctx } from '../router.js';
 import { refresh } from '../router.js';
 import * as db from '../db.js';
 import type { Client, Settings } from '../types.js';
-import { formValues, text, toggle, topbar } from '../components.js';
+import { formValues, syncLine, text, toggle, topbar } from '../components.js';
 import { mapClients, parseCSV } from '../csv.js';
 import { loadSample, removeSample } from '../seed.js';
 import { authForm, bindAuthForm, currentEmail, signOut } from '../auth.js';
+import { forgetDevice, resetPull, syncNow } from '../sync.js';
+import { bindSyncLine } from '../syncui.js';
 import { $, PREVIEW, confirmDialog, downloadFile, html, raw, toast, today } from '../util.js';
 
 export async function settingsView({ root }: Ctx) {
@@ -36,9 +38,10 @@ export async function settingsView({ root }: Ctx) {
     <section class="card account">
       <h2>Account</h2>
       ${PREVIEW ? html`<p class="fineprint">Signing in isn't available in this preview.</p>` : email ? html`
-        <p>Signed in as <b>${email}</b>. Importing notebook pages uses this account.</p>
-        <div class="row-end"><button class="btn ghost" data-act="signout">Sign out</button></div>`
-      : authForm('Sign in to read notebook pages. Create the account once, then sign in with the same email and password on each device.')}
+        <p>Signed in as <b>${email}</b>. Her clients, sessions and class plans are backed up to this account and kept in step on every device she signs in on.</p>
+        <p class="sync-status">${syncLine()}</p>
+        <div class="row-end"><button class="btn ghost" data-act="signout">Sign out</button><button class="btn" data-act="sync-now">Sync now</button></div>`
+      : authForm('Sign in to back up her data, keep her phone and iPad in step, and read notebook pages. Create the account once, then sign in with the same email and password on each device.')}
     </section>
 
     <section class="card">
@@ -69,7 +72,7 @@ export async function settingsView({ root }: Ctx) {
 
     <section class="card">
       <h2>Backup</h2>
-      ${PREVIEW ? html`<p class="flag">Backups are turned off in this preview. They work in the installed app.</p>` : ''}<p>Everything is stored on this device only. Download a backup regularly and keep it somewhere safe, like Files or iCloud Drive. Restoring on another device copies everything over.</p>
+      ${PREVIEW ? html`<p class="flag">Backups are turned off in this preview. They work in the installed app.</p>` : ''}<p>${email ? 'Her data is backed up to her account automatically. A downloaded backup is an extra copy she controls; restoring one adds its records to her account.' : 'Everything is stored on this device only. Sign in above to back it up automatically, or download a backup and keep it somewhere safe, like Files or iCloud Drive.'}</p>
       <p class="fineprint">${db.persistent ? (persisted ? 'Storage is marked as persistent, so the system will not clear it to save space.' : 'Tip: add the app to the Home Screen so the system keeps its data.') : 'Storage is not available here, so changes in this window are not being saved.'}</p>
       <div class="row-end">
         <label class="file-btn btn ghost">Restore from backup<input type="file" accept=".json,application/json" name="restore" hidden></label>
@@ -90,11 +93,11 @@ export async function settingsView({ root }: Ctx) {
     </section>
 
     <section class="card danger-zone">
-      <h2>Erase everything</h2>
-      <p>Deletes every client, session, measurement and custom exercise from this device.</p>
-      <div class="row-end"><button class="btn danger" data-act="erase">Erase all data</button></div>
+      <h2>Erase this device</h2>
+      <p>Deletes every client, session, measurement and custom exercise from this device and signs out. Anything already synced stays in her account and comes back when she signs in again.</p>
+      <div class="row-end"><button class="btn danger" data-act="erase">Erase this device</button></div>
     </section>
-    <p class="fineprint center">PFF Coach · version 1.1</p>`.value;
+    <p class="fineprint center">PFF Coach · version 1.2</p>`.value;
 
   // profile
   const pf = $('.profile-form', root) as HTMLFormElement;
@@ -108,6 +111,7 @@ export async function settingsView({ root }: Ctx) {
 
   // account and import model
   bindAuthForm(root, () => refresh());
+  bindSyncLine(root);
   root.querySelector<HTMLSelectElement>('select[name="importModel"]')?.addEventListener('change', async (e) => {
     const cur = await db.getSettings();
     await db.saveSettings({ ...cur, importModel: (e.target as HTMLSelectElement).value as Settings['importModel'] });
@@ -156,6 +160,8 @@ export async function settingsView({ root }: Ctx) {
       const ok = await confirmDialog('Restore this backup?', `It has ${data.clients?.length ?? 0} clients and ${data.sessions?.length ?? 0} sessions, saved ${String(data.exportedAt || '').slice(0, 10)}. Everything on this device will be replaced with it.`, 'Replace and restore', true);
       if (!ok) return;
       await db.importAll(data, 'replace');
+      await resetPull();
+      syncNow();
       toast('Backup restored');
       refresh();
     } catch (err) {
@@ -168,6 +174,8 @@ export async function settingsView({ root }: Ctx) {
     if (!b) return;
     const act = b.dataset.act;
     if (act === 'signout') {
+      if (!(await confirmDialog('Sign out?', 'Her data stays on this device but stops syncing until she signs in again.', 'Sign out'))) return;
+      await syncNow();
       await signOut(); toast('Signed out'); refresh();
     } else if (act === 'backup') {
       const data = await db.exportAll();
@@ -184,7 +192,9 @@ export async function settingsView({ root }: Ctx) {
     } else if (act === 'remove-sample') {
       await removeSample(); toast('Sample clients removed'); refresh();
     } else if (act === 'erase') {
-      if (!(await confirmDialog('Erase all data?', 'Every client, session and measurement on this device will be deleted. Download a backup first if you might need it.', 'Erase everything', true))) return;
+      if (!(await confirmDialog('Erase this device?', 'Every client, session and measurement on this device will be deleted and you\'ll be signed out. Synced data stays in her account.', 'Erase this device', true))) return;
+      if (email) { await syncNow(); await signOut(); }
+      await forgetDevice();
       await db.clearAll();
       location.hash = '#/';
       location.reload();

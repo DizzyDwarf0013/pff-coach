@@ -1,5 +1,5 @@
 // App entry: routes, shell, storage and offline setup.
-import { render, route } from './router.js';
+import { currentPath, refresh, render, route } from './router.js';
 import * as db from './db.js';
 import { ensureCatalog, loadSample } from './seed.js';
 import { PREVIEW } from './util.js';
@@ -13,6 +13,7 @@ import { settingsView } from './views/settings.js';
 import { importView } from './views/import.js';
 import { classDetail, classList } from './views/classes.js';
 import { consumeRedirect } from './auth.js';
+import { startAutoSync } from './sync.js';
 
 route('/', 'today', home);
 route('/clients', 'clients', clientsList);
@@ -39,6 +40,12 @@ async function start() {
   // Ask the browser not to evict data (granted automatically for Home Screen apps on iOS).
   try { await navigator.storage?.persist?.(); } catch { /* not supported */ }
   await render();
+  // Show changes from her other device, but never re-render a screen she might be typing on.
+  document.addEventListener('sync-applied', () => {
+    const path = currentPath().split('?')[0];
+    if (/^\/$|^\/clients$|^\/clients\/[^/]+$|^\/classes(\/[^/]+)?$|^\/exercises$/.test(path) && path !== '/clients/new') refresh();
+  });
+  if (!PREVIEW) startAutoSync();
   if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window.self) {
     navigator.serviceWorker.register('sw.js').catch(() => { /* offline support is optional */ });
   }

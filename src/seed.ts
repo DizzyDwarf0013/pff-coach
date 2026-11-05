@@ -93,7 +93,7 @@ export async function ensureCatalog() {
   const rows: Exercise[] = CATALOG.map(([name, category, equipment, measure, tags]) => ({
     id: slug(name), name, category, equipment, measure, tags,
   }));
-  await db.putMany('exercises', rows);
+  await db.putMany('exercises', rows, { track: false });
   await db.setMeta('catalogSeeded', true);
   db.invalidateExercises();
 }
@@ -129,7 +129,7 @@ export async function loadSample() {
       maternal: { status: 'none', pelvicFloor: [] }, eatingDisorderHistory: 'no',
     },
   });
-  await db.putMany('clients', [maya, jen]);
+  await db.putMany('clients', [maya, jen], { track: false }); // sample data stays on this device
 
   const plan: Record<string, [string, number, number, number][]> = {
     // exerciseId, start weight, reps, weekly step
@@ -158,11 +158,11 @@ export async function loadSample() {
       measures.push({ id: uid(), clientId: c.id, date, weight, musclePct, sessionId: id });
     }
   }
-  await db.putMany('sessions', sessions);
-  await db.putMany('measurements', measures);
+  await db.putMany('sessions', sessions, { track: false });
+  await db.putMany('measurements', measures, { track: false });
 }
 
 export async function removeSample() {
   const clients = await db.getClients();
-  for (const c of clients.filter((c) => c.source === 'sample')) await db.deleteClientCascade(c.id);
+  for (const c of clients.filter((c) => c.source === 'sample')) await db.deleteClientCascade(c.id, { track: false });
 }

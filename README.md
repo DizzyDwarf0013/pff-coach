@@ -15,24 +15,32 @@ A trainer app for Pink Fitness Florida and private clients that installs on iPho
 - **Exercises.** 55 starter exercises tagged for care (lying on back, impact, core pressure, and so on), with the ability to add her own.
 - **Backup.** Download a backup and restore it on another device.
 
-## Important: data lives on each device
+## Sync between devices (1.2)
 
-In v1, everything is stored on the device it was entered on. **The iPhone and iPad do not sync yet.** Choose one device as the main one, and use **Settings → Download backup / Restore from backup** to move data between them. Download a backup regularly.
+Once she signs in (**Settings → Account**), her clients, sessions, measurements, class plans, custom exercises and her details sync to her Supabase account and to every device she signs in on.
 
-Syncing between devices is the first item for phase 2 (see below).
+- Each device keeps a full copy and works offline. Changes queue up and send when there's a connection: a few seconds after an edit, when the app is opened, and every couple of minutes while it's open.
+- The first time a device signs in, everything already on it is uploaded. Sample data never syncs.
+- If the same record was changed on two devices, the newer change wins.
+- **Erase this device** only clears that device and signs out; her account keeps the data.
+- Data is stored in the `records` table (one JSON document per record) with row-level security, so each account can only read and change its own rows.
 
 ## Server side (Supabase)
 
-Project `xvqamjaxutxfyzkbtigr`. The app signs in with Supabase Auth (email and password) and calls one Edge Function, `extract`, which checks the sign-in, checks the email against `ALLOWED_EMAILS`, and sends the page image to the Claude API. Client data still stays on the device; only page images pass through the server and they aren't stored.
+Project `xvqamjaxutxfyzkbtigr`. The app signs in with Supabase Auth (email and password), syncs through the `records` table and the `sync_push` database function, and calls one Edge Function, `extract`, which checks the sign-in, checks the email against `ALLOWED_EMAILS`, and sends the page image to the Claude API. Page images aren't stored.
 
-`.github/workflows/supabase.yml` runs whenever `supabase/` changes. It runs the function's tests, deploys it, copies the secrets into Supabase, points sign-in emails at the app's address, and checks the function responds.
+Database changes live in `supabase/migrations/` and are applied by the deploy workflow through the Supabase Management API.
+
+`.github/workflows/keepalive.yml` runs a tiny query every day so the free project doesn't pause during quiet weeks. GitHub turns off scheduled workflows in a repository with no commits for 60 days; if that happens, re-enable it under **Actions → Keep Supabase awake**.
+
+`.github/workflows/supabase.yml` runs whenever `supabase/` changes. It runs the function's tests, applies database changes, deploys the function, copies the secrets into Supabase, points sign-in emails at the app's address, and checks the function responds.
 
 Repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | What it is |
 |---|---|
 | `SUPABASE_ACCESS_TOKEN` | Personal access token from the Supabase account page |
-| `SUPABASE_DB_PASSWORD` | The project's database password (used for sync, next) |
+| `SUPABASE_DB_PASSWORD` | The project's database password (kept for direct database work) |
 | `ANTHROPIC_API_KEY` | Claude API key from platform.claude.com |
 | `ALLOWED_EMAILS` | Comma-separated emails allowed to read pages |
 
@@ -67,8 +75,7 @@ On a report or workout sheet, tap **Print or save PDF**. In the print preview, t
 
 ## Phase 2 roadmap
 
-1. **Sync between iPhone and iPad.** Sign-in is in place; next is storing clients and sessions in the Supabase database so both devices share them.
-2. **Automated reminders and promotions.** Scheduled email and text sends to opted-in clients only, with unsubscribe handling. Texts need a provider such as Twilio and the usual opt-in rules.
-3. **Website import.** Pull new sign-ups from OfferingTree automatically if it offers an API or webhook. If not, CSV export plus the existing import works today.
-4. **Group fitness.** Class planner, class catalog, history of planned classes, and suggestions that rotate formats and avoid repeating recent workouts.
-5. **Suggestions.** Next-session suggestions for personal training based on history, goals, and intake flags.
+1. **Automated reminders and promotions.** Scheduled email and text sends to opted-in clients only, with unsubscribe handling. Texts need a provider such as Twilio and the usual opt-in rules.
+2. **Website import.** Pull new sign-ups from OfferingTree automatically if it offers an API or webhook. If not, CSV export plus the existing import works today.
+3. **Group fitness.** Class planner, class catalog, history of planned classes, and suggestions that rotate formats and avoid repeating recent workouts.
+4. **Suggestions.** Next-session suggestions for personal training based on history, goals, and intake flags.

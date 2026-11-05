@@ -1,0 +1,19 @@
+# Free Supabase projects pause after a week without use. A tiny daily database query keeps
+# the backend awake during quiet weeks, so sign-in, sync and importing keep working.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: '17 11 * * *' # daily, early morning Eastern
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the database
+        run: |
+          out=$(curl -sS -X POST "https://xvqamjaxutxfyzkbtigr.supabase.co/rest/v1/rpc/ping" \
+            -H "apikey: sb_publishable_inb7y1Gu5DBI5-GUtrKQbw_ev8kaP9N" -H 'content-type: application/json' -d '{}')
+          echo "ping answered: $out"
+          [ "$out" = "1" ] || { echo "::error::The Supabase project didn't answer. It may be paused; restore it from the Supabase dashboard."; exit 1; }

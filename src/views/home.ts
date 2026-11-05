@@ -3,12 +3,15 @@ import type { Ctx } from '../router.js';
 import { refresh } from '../router.js';
 import * as db from '../db.js';
 import type { Client, Session } from '../types.js';
-import { avatar, topbar } from '../components.js';
+import { avatar, syncLine, topbar } from '../components.js';
+import { currentEmail } from '../auth.js';
+import { bindSyncLine } from '../syncui.js';
 import { loadSample } from '../seed.js';
 import { addDays, daysBetween, fullName, html, relDay, toast, today } from '../util.js';
 
 export async function home({ root }: Ctx) {
-  const [clients, sessions, settings, exMap] = await Promise.all([db.getClients(), db.allSessions(), db.getSettings(), db.exercises()]);
+  const [clients, sessions, settings, exMap, email] = await Promise.all([db.getClients(), db.allSessions(), db.getSettings(), db.exercises(), currentEmail()]);
+  const signedIn = !!email;
   const byId = new Map(clients.map((c) => [c.id, c]));
   const t = today();
   const inProgress = sessions.filter((s) => s.status === 'in_progress');
@@ -30,7 +33,7 @@ export async function home({ root }: Ctx) {
   const clientRow = (c: Client) => html`<li><a class="row" href="#/clients/${c.id}">${avatar(c)}<span class="row-main"><span class="row-title">${fullName(c)}</span><span class="row-sub">Last session ${relDay(lastSeen.get(c.id)!).toLowerCase()}${c.consent.sms || c.consent.email ? '' : ' · not opted in to messages'}</span></span><span class="chev" aria-hidden="true">›</span></a></li>`;
 
   root.innerHTML = html`
-    ${topbar(`${greeting}${name ? `, ${name}` : ''}`, { sub: new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) })}
+    ${topbar(`${greeting}${name ? `, ${name}` : ''}`, { sub: html`${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${signedIn ? html` · ${syncLine()}` : ''}` })}
     <div class="quick">
       <a class="quick-btn primary" href="#/sessions/new"><b>Start session</b><span>Log sets as she trains</span></a>
       <a class="quick-btn" href="#/sessions/new?plan=1"><b>Plan a workout</b><span>Build it ahead, share it with her</span></a>
@@ -51,6 +54,7 @@ export async function home({ root }: Ctx) {
     ${quiet.length ? html`<h2 class="list-head">Haven't trained in 3+ weeks</h2><ul class="list">${quiet.map(clientRow)}</ul>` : ''}
   `.value;
 
+  bindSyncLine(root);
   root.querySelector('[data-act="sample"]')?.addEventListener('click', async () => {
     await loadSample();
     toast('Sample clients loaded');
