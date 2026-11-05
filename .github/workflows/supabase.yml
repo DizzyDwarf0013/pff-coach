@@ -60,14 +60,19 @@ jobs:
 
       - name: Apply database changes
         if: steps.secrets.outputs.ok == 'true'
-        env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          [ -n "$SUPABASE_DB_PASSWORD" ] || { echo "::error::SUPABASE_DB_PASSWORD secret is missing, so database changes can't be applied."; exit 1; }
-          out=$(supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --yes 2>&1) || { echo "$out"; echo "::error::Linking the project failed: $(echo "$out" | grep -v '^$' | tail -4 | tr '\n' ' ')"; exit 1; }
-          out=$(supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --include-all --yes 2>&1) || { echo "$out"; echo "::error::Applying database changes failed: $(echo "$out" | grep -v '^$' | tail -6 | tr '\n' ' ')"; exit 1; }
-          echo "$out"
-          echo "::notice::Database is up to date: $(echo "$out" | grep -v '^$' | tail -1)"
+          # Uses the Management API (HTTPS) because the runners can't reach the database directly.
+          api="https://api.supabase.com/v1/projects/$PROJECT_REF/database/migrations"
+          code=$(curl -sS -o /tmp/applied.json -w '%{http_code}' -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$api")
+          [ "$code" = "200" ] || { echo "::error::Couldn't list database migrations ($code): $(head -c 300 /tmp/applied.json)"; exit 1; }
+          for f in supabase/migrations/*.sql; do
+            base=$(basename "$f" .sql); name=${base#*_}
+            if jq -e --arg n "$name" '.[] | select(.name == $n)' /tmp/applied.json >/dev/null; then echo "Already applied: $name"; continue; fi
+            jq -n --rawfile q "$f" --arg n "$name" '{query: $q, name: $n}' > /tmp/body.json
+            code=$(curl -sS -o /tmp/out.json -w '%{http_code}' -X POST "$api" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'content-type: application/json' --data @/tmp/body.json)
+            [ "$code" -lt 300 ] || { echo "::error::Applying $name failed ($code): $(head -c 400 /tmp/out.json)"; exit 1; }
+            echo "::notice::Applied database change: $name"
+          done
 
       - name: Deploy the extract function
         if: steps.secrets.outputs.ok == 'true'
