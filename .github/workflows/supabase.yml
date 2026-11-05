@@ -62,10 +62,10 @@ jobs:
         if: steps.secrets.outputs.ok == 'true'
         run: |
           # Server-side bundling first; fall back to bundling with Docker on the runner.
-          if out=$(supabase functions deploy extract --project-ref "$PROJECT_REF" --no-verify-jwt --use-api 2>&1); then echo "$out"; exit 0; fi
+          if out=$(supabase functions deploy extract --project-ref "$PROJECT_REF" --no-verify-jwt --use-api --yes 2>&1); then echo "$out"; exit 0; fi
           echo "$out"
           echo "::warning::Server-side bundling failed: $(echo "$out" | grep -v '^$' | tail -4 | tr '\n' ' ')"
-          if out=$(supabase functions deploy extract --project-ref "$PROJECT_REF" --no-verify-jwt 2>&1); then echo "$out"; exit 0; fi
+          if out=$(supabase functions deploy extract --project-ref "$PROJECT_REF" --no-verify-jwt --yes 2>&1); then echo "$out"; exit 0; fi
           echo "$out"
           echo "::error::Deploy failed: $(echo "$out" | grep -v '^$' | tail -6 | tr '\n' ' ')"
           exit 1
@@ -80,7 +80,7 @@ jobs:
           [ -n "$ANTHROPIC_API_KEY" ] && args+=("ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
           [ -n "$ALLOWED_EMAILS" ] && args+=("ALLOWED_EMAILS=$ALLOWED_EMAILS")
           if [ ${#args[@]} -gt 0 ]; then
-            out=$(supabase secrets set --project-ref "$PROJECT_REF" "${args[@]}" 2>&1) || { echo "::error::Setting secrets failed: $(echo "$out" | tail -3 | tr '\n' ' ')"; exit 1; }
+            out=$(supabase secrets set --project-ref "$PROJECT_REF" --yes "${args[@]}" 2>&1) || { echo "::error::Setting secrets failed: $(echo "$out" | tail -3 | tr '\n' ' ')"; exit 1; }
             echo "Secrets set"
           fi
 
