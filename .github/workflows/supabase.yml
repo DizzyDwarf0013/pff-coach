@@ -58,6 +58,17 @@ jobs:
         with:
           version: latest
 
+      - name: Apply database changes
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          [ -n "$SUPABASE_DB_PASSWORD" ] || { echo "::error::SUPABASE_DB_PASSWORD secret is missing, so database changes can't be applied."; exit 1; }
+          out=$(supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD" --yes 2>&1) || { echo "$out"; echo "::error::Linking the project failed: $(echo "$out" | grep -v '^$' | tail -4 | tr '\n' ' ')"; exit 1; }
+          out=$(supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --include-all --yes 2>&1) || { echo "$out"; echo "::error::Applying database changes failed: $(echo "$out" | grep -v '^$' | tail -6 | tr '\n' ' ')"; exit 1; }
+          echo "$out"
+          echo "::notice::Database is up to date: $(echo "$out" | grep -v '^$' | tail -1)"
+
       - name: Deploy the extract function
         if: steps.secrets.outputs.ok == 'true'
         run: |
@@ -95,11 +106,18 @@ jobs:
 
       - name: Smoke test
         if: steps.secrets.outputs.ok == 'true'
+        env:
+          PUBLISHABLE_KEY: sb_publishable_inb7y1Gu5DBI5-GUtrKQbw_ev8kaP9N
         run: |
+          ping=$(curl -s -X POST "https://$PROJECT_REF.supabase.co/rest/v1/rpc/ping" -H "apikey: $PUBLISHABLE_KEY" -H 'content-type: application/json' -d '{}')
+          anon=$(curl -s -o /dev/null -w '%{http_code}' "https://$PROJECT_REF.supabase.co/rest/v1/records?select=id&limit=1" -H "apikey: $PUBLISHABLE_KEY")
+          echo "ping=$ping records-without-sign-in=$anon"
+          [ "$ping" = "1" ] || { echo "::error::Database ping didn't answer 1 (got $ping)."; exit 1; }
+          [ "$anon" != "200" ] || [ "$(curl -s "https://$PROJECT_REF.supabase.co/rest/v1/records?select=id&limit=1" -H "apikey: $PUBLISHABLE_KEY")" = "[]" ] || { echo "::error::Records are readable without sign-in."; exit 1; }
           url="https://$PROJECT_REF.supabase.co/functions/v1/extract"
           sleep 5
           pre=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$url")
           unauth=$(curl -s -o /tmp/body -w '%{http_code}' -X POST "$url" -H 'content-type: application/json' -d '{}')
           echo "preflight=$pre unauthenticated=$unauth body=$(cat /tmp/body)"
           [ "$pre" = "204" ] && [ "$unauth" = "401" ] || { echo "::error::The function didn't respond as expected."; exit 1; }
-          echo "::notice::Page reader is live and rejects requests without sign-in."
+          echo "::notice::Page reader is live and rejects requests without sign-in. Sync database answers and hides records from signed-out visitors."
