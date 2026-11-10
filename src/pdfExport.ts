@@ -10,6 +10,8 @@ export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navi
 const PAGE_W = 816, PAGE_H = 1056, MARGIN = 48;
 const CONTENT_W = PAGE_W - MARGIN * 2, CONTENT_H = PAGE_H - MARGIN * 2;
 const SCALE = 2;
+/** Largest canvas drawn in one go. iOS refuses canvases over about 16.7 million pixels. */
+const MAX_CANVAS_PX = 12e6;
 
 let loading: Promise<void> | null = null;
 function loadRenderer(): Promise<void> {
@@ -83,6 +85,52 @@ function jpegBytes(canvas: HTMLCanvasElement): Uint8Array {
   return out;
 }
 
+const SVG_PROPS = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'opacity', 'font-size', 'font-family', 'font-weight', 'text-anchor', 'dominant-baseline'];
+
+/** html2canvas is slow with inline SVG (each one is serialised and decoded on every draw), so turn
+ *  each picture into a canvas first. Styles that come from the stylesheet are copied onto the
+ *  elements so the picture looks the same once it's on its own. Identical pictures are drawn once. */
+async function rasterizeSvgs(root: HTMLElement, scale: number): Promise<void> {
+  const cache = new Map<string, Promise<HTMLImageElement | null>>();
+  const load = (src: string) => new Promise<HTMLImageElement | null>((res) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+  const jobs = Array.from(root.querySelectorAll('svg')).filter((svg) => !svg.parentElement?.closest('svg')).map(async (svg) => {
+    const r = svg.getBoundingClientRect();
+    // charts let labels hang outside their box, which a picture would cut off; there are only a few
+    if (r.width < 1 || r.height < 1 || getComputedStyle(svg).overflow === 'visible') return;
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    const src = [svg as Element, ...Array.from(svg.querySelectorAll('*'))];
+    const dst = [clone as Element, ...Array.from(clone.querySelectorAll('*'))];
+    src.forEach((el, i) => {
+      const cs = getComputedStyle(el);
+      const css = SVG_PROPS.map((k) => `${k}:${cs.getPropertyValue(k)}`).join(';');
+      dst[i].setAttribute('style', css);
+    });
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', String(r.width));
+    clone.setAttribute('height', String(r.height));
+    const xml = new XMLSerializer().serializeToString(clone);
+    const key = `${r.width}x${r.height}|${xml}`;
+    if (!cache.has(key)) cache.set(key, load('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml)));
+    const im = await cache.get(key)!;
+    if (!im) return;
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(r.width * scale);
+    cv.height = Math.round(r.height * scale);
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(im, 0, 0, cv.width, cv.height);
+    const cs = getComputedStyle(svg);
+    cv.style.cssText = `width:${r.width}px;height:${r.height}px;display:${cs.display === 'inline' ? 'inline-block' : cs.display};vertical-align:${cs.verticalAlign};border-radius:${cs.borderRadius};margin:${cs.margin}`;
+    svg.replaceWith(cv);
+  });
+  await Promise.all(jobs);
+}
+
 /** Draws a document element into Letter pages and returns the PDF. */
 export async function docToPdf(doc: HTMLElement, onProgress?: (msg: string) => void): Promise<Blob> {
   onProgress?.('Getting ready…');
@@ -105,37 +153,55 @@ export async function docToPdf(doc: HTMLElement, onProgress?: (msg: string) => v
   try {
     try { await (document as any).fonts?.ready; } catch { /* fonts API missing */ }
     await Promise.all(Array.from(copy.querySelectorAll('img')).map((img) => (img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; }))));
+    say('Preparing pictures…');
+    await rasterizeSvgs(copy, SCALE);
     const box = copy.getBoundingClientRect();
     const rel = (el: Element) => Math.round(el.getBoundingClientRect().top - box.top);
     const tops = Array.from(copy.querySelectorAll('tr, .ex-card, section, header, footer, .chart, .doc-stats, h2, .doc-note')).map(rel).filter((y) => y > 0);
     const forced = Array.from(copy.querySelectorAll('[data-page-break]')).map(rel);
     const total = Math.ceil(copy.scrollHeight);
     const pages = pageBreaks(total, tops, forced);
-    const jpgs: Uint8Array[] = [];
-    for (let i = 0; i < pages.length; i++) {
-      say(`Page ${i + 1} of ${pages.length}`);
-      const [y0, y1] = pages[i];
-      const slice: HTMLCanvasElement = await h2c(copy, {
-        scale: SCALE, backgroundColor: '#ffffff', logging: false, useCORS: true,
-        x: box.left + window.scrollX, y: box.top + window.scrollY + y0, width: CONTENT_W, height: y1 - y0,
-        windowWidth: 1100, windowHeight: Math.max(PAGE_H, total + 200), scrollX: 0, scrollY: 0,
-      });
-      const page = document.createElement('canvas');
-      page.width = PAGE_W * SCALE;
-      page.height = PAGE_H * SCALE;
-      const ctx = page.getContext('2d')!;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, page.width, page.height);
-      ctx.drawImage(slice, MARGIN * SCALE, MARGIN * SCALE);
-      if (pages.length > 1) {
-        ctx.fillStyle = '#7A727C';
-        ctx.font = `${11 * SCALE}px "Atkinson Hyperlegible", sans-serif`;
-        ctx.textAlign = 'right';
-        ctx.fillText(`${i + 1} / ${pages.length}`, (PAGE_W - MARGIN) * SCALE, (PAGE_H - MARGIN / 2) * SCALE);
-      }
-      jpgs.push(jpegBytes(page));
+    // Draw the document once (in a few big chunks if it's long, to stay under iOS canvas limits)
+    // and cut the pages from that, instead of redrawing everything for every page.
+    const maxChunk = Math.floor(MAX_CANVAS_PX / (CONTENT_W * SCALE * CONTENT_W * SCALE) * CONTENT_W);
+    const chunks: { y0: number; y1: number; pages: [number, number][] }[] = [];
+    for (const pg of pages) {
+      const last = chunks[chunks.length - 1];
+      if (last && pg[1] - last.y0 <= maxChunk) { last.y1 = pg[1]; last.pages.push(pg); } else chunks.push({ y0: pg[0], y1: pg[1], pages: [pg] });
     }
-    return jpegPdf(jpgs, PAGE_W * SCALE, PAGE_H * SCALE);
+    const jpgs: Uint8Array[] = [];
+    let done = 0;
+    for (const ch of chunks) {
+      say(`Drawing${pages.length > 1 ? ` ${pages.length} pages` : ''}…`);
+      const img: HTMLCanvasElement = await h2c(copy, {
+        scale: SCALE, backgroundColor: '#ffffff', logging: false, useCORS: true,
+        x: box.left + window.scrollX, y: box.top + window.scrollY + ch.y0, width: CONTENT_W, height: ch.y1 - ch.y0,
+        windowWidth: 1100, windowHeight: Math.max(PAGE_H, total + 200), scrollX: 0, scrollY: 0,
+        // only the copy is needed; skipping the rest of the app makes this several times faster
+        ignoreElements: (el: Element) => el !== document.documentElement && el !== document.body && el !== document.head && !stage.contains(el) && !el.contains(stage) && el.tagName !== 'STYLE' && el.tagName !== 'LINK',
+      });
+      for (const [y0, y1] of ch.pages) {
+        done++;
+        say(`Page ${done} of ${pages.length}`);
+        const page = document.createElement('canvas');
+        page.width = PAGE_W * SCALE;
+        page.height = PAGE_H * SCALE;
+        const ctx = page.getContext('2d')!;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, page.width, page.height);
+        const sy = (y0 - ch.y0) * SCALE, sh = Math.min((y1 - y0) * SCALE, img.height - sy);
+        ctx.drawImage(img, 0, sy, img.width, sh, MARGIN * SCALE, MARGIN * SCALE, img.width, sh);
+        if (pages.length > 1) {
+          ctx.fillStyle = '#7A727C';
+          ctx.font = `${11 * SCALE}px "Atkinson Hyperlegible", sans-serif`;
+          ctx.textAlign = 'right';
+          ctx.fillText(`${done} / ${pages.length}`, (PAGE_W - MARGIN) * SCALE, (PAGE_H - MARGIN / 2) * SCALE);
+        }
+        jpgs.push(jpegBytes(page));
+        await new Promise((r) => setTimeout(r, 0)); // let the progress text update
+      }
+    }
+    const out = jpegPdf(jpgs, PAGE_W * SCALE, PAGE_H * SCALE); return out;
   } finally {
     stage.remove();
     cover.remove();
