@@ -1,73 +1,12 @@
-// Session logging and workout planning.
+// Session logging. Choosing how to start a session or plan one lives in planWorkout.ts.
 import type { Ctx } from '../router.js';
 import { go } from '../router.js';
 import * as db from '../db.js';
 import type { Exercise, Session, SessionItem, SetEntry } from '../types.js';
-import { avatar, empty, topbar } from '../components.js';
+import { empty, topbar } from '../components.js';
 import { filled, flagsFor, guidance, lastPerformance, lastSummary, progressionHint, setLabel, type ClientGuidance } from '../logic.js';
-import { $, $$, confirmDialog, debounce, fmtShort, fullName, html, num, Raw, relDay, toast, today, uid } from '../util.js';
-
-function blankSession(clientId: string, status: Session['status'], date = today()): Session {
-  const now = new Date().toISOString();
-  return { id: uid(), clientId, date, status, items: [], post: {}, createdAt: now, updatedAt: now };
-}
-
-const copyItems = (items: SessionItem[]): SessionItem[] => items.map((it) => ({ exerciseId: it.exerciseId, sets: it.sets.map((s) => ({ ...s })), notes: '' }));
-
-/** "Start session" / "Plan a workout": pick a client, then how to start. */
-export async function newSession({ root, query }: Ctx) {
-  const clientId = query.get('client');
-  const plan = query.get('plan') === '1';
-  const verb = plan ? 'Plan a workout' : 'Start session';
-
-  if (!clientId) {
-    const clients = (await db.getClients()).filter((c) => c.status !== 'inactive').sort((a, b) => a.firstName.localeCompare(b.firstName));
-    root.innerHTML = html`
-      ${topbar(verb, { back: '/', backLabel: 'Today', sub: 'Who is this for?' })}
-      ${clients.length ? html`<ul class="list">${clients.map((c) => html`
-        <li><a class="row" href="#/sessions/new?client=${c.id}${plan ? '&plan=1' : ''}">${avatar(c)}<span class="row-main"><span class="row-title">${fullName(c)}</span><span class="row-sub">${c.isPinkFitness ? 'Pink Fitness' : 'Private'}</span></span><span class="chev" aria-hidden="true">›</span></a></li>`)}
-      </ul>` : empty('No clients yet', 'Add a client first.', html`<a class="btn primary" href="#/clients/new">New client</a>`)}`.value;
-    return;
-  }
-
-  const c = await db.getClient(clientId);
-  if (!c) { go('/sessions/new', true); return; }
-  const sessions = await db.sessionsFor(c.id);
-  const own = sessions.filter((s) => !s.classId); // group classes aren't private workouts to repeat or start
-  const last = own.find((s) => s.status !== 'planned' && s.items.length);
-  const plannedToday = own.filter((s) => s.status === 'planned').sort((a, b) => Math.abs(+new Date(a.date) - Date.now()) - Math.abs(+new Date(b.date) - Date.now()))[0];
-  const inProgress = own.find((s) => s.status === 'in_progress');
-
-  const options: Raw[] = [];
-  if (!plan && inProgress) options.push(html`<button class="choice" data-choice="resume"><b>Pick up the session in progress</b><span>Started ${relDay(inProgress.date).toLowerCase()}, ${inProgress.items.length} exercises</span></button>`);
-  if (!plan && plannedToday) options.push(html`<button class="choice" data-choice="planned"><b>Use the workout planned for ${relDay(plannedToday.date).toLowerCase()}</b><span>${plannedToday.items.length} exercises</span></button>`);
-  if (last) options.push(html`<button class="choice" data-choice="repeat"><b>Repeat her last workout</b><span>${fmtShort(last.date)}, ${last.items.length} exercises with the same weights</span></button>`);
-  options.push(html`<button class="choice" data-choice="blank"><b>Start from scratch</b><span>Add exercises as you go</span></button>`);
-
-  root.innerHTML = html`
-    ${topbar(verb, { back: `/clients/${c.id}`, backLabel: fullName(c), sub: `For ${fullName(c)}` })}
-    ${plan ? html`<label class="field narrow"><span class="label">Workout date</span><input type="date" name="planDate" value="${today()}"></label>` : ''}
-    <div class="choices">${options}</div>`.value;
-
-  root.addEventListener('click', async (e) => {
-    const b = (e.target as HTMLElement).closest('[data-choice]') as HTMLElement | null;
-    if (!b) return;
-    const choice = b.dataset.choice;
-    if (choice === 'resume' && inProgress) { go(`/sessions/${inProgress.id}`, true); return; }
-    if (choice === 'planned' && plannedToday) {
-      plannedToday.status = 'in_progress';
-      plannedToday.date = today();
-      await db.saveSession(plannedToday);
-      go(`/sessions/${plannedToday.id}`, true);
-      return;
-    }
-    const date = plan ? (($('input[name="planDate"]', root) as HTMLInputElement).value || today()) : today();
-    const s = blankSession(c.id, plan ? 'planned' : 'in_progress', date);
-    if (choice === 'repeat' && last) s.items = copyItems(last.items);
-    await db.saveSession(s);
-    go(`/sessions/${s.id}${choice === 'blank' ? '?add=1' : ''}`, true);
-  });
-}
+import { goalProfile } from '../goals.js';
+import { $, $$, confirmDialog, debounce, fullName, html, num, Raw, toast, today, uid } from '../util.js';
 
 export async function sessionEditor({ root, params, query, mounted }: Ctx) {
   const s = await db.getSession(params.id);
@@ -76,6 +15,7 @@ export async function sessionEditor({ root, params, query, mounted }: Ctx) {
   const c = (await db.getClient(s.clientId))!;
   const [history, exMap] = await Promise.all([db.sessionsFor(c.id), db.exercises()]);
   const g = guidance(c);
+  const bumpAt = goalProfile(c.intake).bumpAt;
   const others = history.filter((h) => h.id !== s.id);
 
   const save = debounce(async () => {
@@ -105,7 +45,7 @@ export async function sessionEditor({ root, params, query, mounted }: Ctx) {
           <ul class="notes">${g.notes.map((n) => html`<li class="${n.kind}">${n.text}</li>`)}</ul></details>` : ''}
 
       <ol class="items">
-        ${s.items.map((it, i) => itemCard(it, i, s, exMap.get(it.exerciseId), others, g))}
+        ${s.items.map((it, i) => itemCard(it, i, s, exMap.get(it.exerciseId), others, g, bumpAt))}
       </ol>
       <button class="btn add-ex" data-act="add-ex">Add exercise</button>
 
@@ -226,11 +166,12 @@ export async function sessionEditor({ root, params, query, mounted }: Ctx) {
   mounted(() => { if (query.get('add') === '1' && !s.items.length) ($('[data-act="add-ex"]', root) as HTMLButtonElement)?.click(); });
 }
 
-function itemCard(it: SessionItem, i: number, s: Session, ex: Exercise | undefined, others: Session[], g: ClientGuidance): Raw {
+function itemCard(it: SessionItem, i: number, s: Session, ex: Exercise | undefined, others: Session[], g: ClientGuidance, bumpAt: number | null): Raw {
   if (!ex) return html`<li class="item card"><p>This exercise was removed from the catalog.</p><button class="btn small danger ghost" data-act="del-ex" data-i="${i}">Remove</button></li>`;
   const flags = flagsFor(ex, g);
   const last = lastSummary(others, ex, s.id, s.date);
-  const hint = s.status !== 'complete' ? progressionHint(others, ex, s.id) : undefined;
+  const lastNote = lastPerformance(others, ex.id, s.id, s.date)?.item.notes?.trim();
+  const hint = s.status !== 'complete' ? progressionHint(others, ex, s.id, bumpAt) : undefined;
   const cols = ex.measure === 'weight_reps' ? [['weight', 'lb'], ['reps', 'reps']] : ex.measure === 'reps' ? [['reps', 'reps']] : [['seconds', 'sec']];
   return html`
     <li class="item card">
@@ -244,6 +185,7 @@ function itemCard(it: SessionItem, i: number, s: Session, ex: Exercise | undefin
       </div>
       ${flags.length ? html`<p class="flag">${flags.join(' ')}</p>` : ''}
       ${last ? html`<p class="last"><span>Last time</span> ${last}</p>` : html`<p class="last"><span>New</span> no history for this one yet</p>`}
+      ${lastNote ? html`<p class="last-note"><span>Last note</span> ${lastNote}</p>` : ''}
       ${hint ? html`<p class="hint-line">${hint}</p>` : ''}
       <table class="sets">
         <thead><tr><th scope="col">Set</th>${cols.map(([, u]) => html`<th scope="col">${u}</th>`)}<th><span class="sr">Remove</span></th></tr></thead>

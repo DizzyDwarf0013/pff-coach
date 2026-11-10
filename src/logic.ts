@@ -155,15 +155,18 @@ export function lastSummary(sessions: Session[], ex: Exercise, excludeId?: strin
   return `${lp.item.sets.filter(filled).map((s) => setLabel(s, ex.measure)).join(', ')} · ${fmtShort(lp.session.date)}`;
 }
 
-/** A gentle progression nudge: if every set last time reached 12+ reps, suggest a small load increase. */
-export function progressionHint(sessions: Session[], ex: Exercise, excludeId?: string): string | undefined {
-  if (ex.measure !== 'weight_reps') return undefined;
+/**
+ * A gentle progression nudge: if every set last time reached the target (12+ reps by default; her goals
+ * can change it, or hold the load with null), suggest a small load increase.
+ */
+export function progressionHint(sessions: Session[], ex: Exercise, excludeId?: string, bumpAt: number | null = 12): string | undefined {
+  if (ex.measure !== 'weight_reps' || bumpAt === null) return undefined;
   const lp = lastPerformance(sessions, ex.id, excludeId);
   if (!lp) return undefined;
   const sets = lp.item.sets.filter(filled);
-  if (sets.length && sets.every((s) => (s.reps || 0) >= 12) && sets[0].weight) {
+  if (sets.length && sets.every((s) => (s.reps || 0) >= bumpAt) && sets[0].weight) {
     const top = Math.max(...sets.map((s) => s.weight || 0));
-    return `Hit 12+ on every set. Try ${fmtNum(top + (top >= 40 ? 5 : 2.5))} lb.`;
+    return `Hit ${bumpAt}+ on every set. Try ${fmtNum(top + (top >= 40 ? 5 : 2.5))} lb.`;
   }
   return undefined;
 }

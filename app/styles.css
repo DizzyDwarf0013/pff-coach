@@ -519,6 +519,36 @@ dialog.picker[open] { display: flex; flex-direction: column; }
   .move-fields > * { margin-bottom: 8px; }
 }
 
+/* ---------- workout planner ---------- */
+.goal-box { background: var(--blush); border-radius: var(--radius); padding: 10px 12px; margin: 8px 0 4px; font-size: .92rem; }
+.goal-box p { margin: 0; }
+.goal-box .goal-effects { color: var(--ink-2); margin-top: 4px; }
+.last-note { color: var(--ink-2); font-size: .92rem; margin: 2px 0; }
+.last-note span { display: inline-block; font-weight: 700; color: var(--ink); background: var(--line); border-radius: 6px; padding: 0 6px; margin-right: 4px; font-size: .85rem; }
+.suggest .why { color: var(--ink-2); font-size: .95rem; }
+.plan-list { list-style: none; margin: 8px 0 4px; padding: 0; }
+.plan-list li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.plan-list li:first-child { border-top: 0; }
+.plan-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.plan-sub { color: var(--muted); font-size: .88rem; }
+.plan-tools { display: flex; align-items: center; gap: 2px; flex: none; }
+.badge.up { background: var(--good-bg); color: var(--good-ink); font-size: .75rem; padding: 1px 8px; }
+.badge.why { background: var(--blush); color: var(--ink); font-size: .75rem; padding: 1px 8px; }
+.last-notes { margin: 8px 0 0; }
+.last-notes summary { cursor: pointer; font-weight: 700; color: var(--pink-ink); padding: 6px 0; }
+.last-notes ul { margin: 0; padding-left: 20px; font-size: .92rem; color: var(--ink-2); display: grid; gap: 4px; }
+.gen-focus { margin: 10px 0 12px; }
+.gen-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.gen-row .spacer { flex: 1; }
+.stepper { display: inline-flex; align-items: center; gap: 4px; background: var(--line); border-radius: 999px; padding: 2px; }
+.stepper b { min-width: 72px; text-align: center; font-size: .95rem; }
+.past-hint { margin: -4px 4px 8px; }
+.past-filter { margin: 0 4px 10px; }
+button.row { width: 100%; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+@supports not (inset: 0) {
+  .plan-list li > * + *, .gen-row > * + *, .plan-tools > * + *, .stepper > * + * { margin-left: 8px; }
+}
+
 /* ---------- sync status ---------- */
 .sync-line[data-tone="ok"] { color: var(--good-ink); }
 .sync-line[data-tone="warn"] { color: var(--review-ink); }
