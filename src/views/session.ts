@@ -6,6 +6,7 @@ import type { Exercise, Session, SessionItem, SetEntry } from '../types.js';
 import { empty, topbar } from '../components.js';
 import { filled, flagsFor, guidance, lastPerformance, lastSummary, progressionHint, setLabel, type ClientGuidance } from '../logic.js';
 import { goalProfile } from '../goals.js';
+import { swapPicker } from '../swapPicker.js';
 import { $, $$, confirmDialog, debounce, fullName, html, num, Raw, toast, today, uid } from '../util.js';
 
 export async function sessionEditor({ root, params, query, mounted }: Ctx) {
@@ -119,6 +120,16 @@ export async function sessionEditor({ root, params, query, mounted }: Ctx) {
     } else if (act === 'use-last') {
       const lp = lastPerformance(others, s.items[i].exerciseId, s.id, s.date);
       if (lp) s.items[i].sets = lp.item.sets.filter(filled).map((x) => ({ ...x }));
+    } else if (act === 'swap') {
+      const cur = exMap.get(s.items[i].exerciseId);
+      if (!cur) return;
+      const pick = await swapPicker({ current: cur, exMap, sessions: others, guidance: g, who: c.firstName, inWorkout: s.items.map((x) => x.exerciseId) });
+      if (!pick) return;
+      // Her latest numbers for the new one, or the same number of empty sets; note what it replaced.
+      const lp = lastPerformance(others, pick.id, s.id, s.date);
+      const sets: SetEntry[] = lp ? lp.item.sets.filter(filled).map((x) => ({ ...x })) : s.items[i].sets.map(() => ({}));
+      s.items[i] = { exerciseId: pick.id, sets: sets.length ? sets : [{}, {}, {}], notes: `Swapped in for ${cur.name}` };
+      toast(`Swapped ${cur.name} for ${pick.name}`);
     } else if (act === 'up' && i > 0) {
       [s.items[i - 1], s.items[i]] = [s.items[i], s.items[i - 1]];
     } else if (act === 'down' && i < s.items.length - 1) {
@@ -178,6 +189,7 @@ function itemCard(it: SessionItem, i: number, s: Session, ex: Exercise | undefin
       <div class="item-head">
         <h3>${ex.name}</h3>
         <div class="item-tools">
+          <button class="btn small ghost swap-btn" data-act="swap" data-i="${i}" aria-label="Swap ${ex.name} for another exercise">Swap</button>
           <button class="icon-btn" data-act="up" data-i="${i}" aria-label="Move ${ex.name} up" ${i === 0 ? new Raw('disabled') : ''}>↑</button>
           <button class="icon-btn" data-act="down" data-i="${i}" aria-label="Move ${ex.name} down" ${i === s.items.length - 1 ? new Raw('disabled') : ''}>↓</button>
           <button class="icon-btn" data-act="del-ex" data-i="${i}" aria-label="Remove ${ex.name}">×</button>

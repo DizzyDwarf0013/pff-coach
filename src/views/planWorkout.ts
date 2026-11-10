@@ -7,10 +7,11 @@ import * as db from '../db.js';
 import type { Exercise, Session } from '../types.js';
 import { avatar, empty, topbar } from '../components.js';
 import { guidance } from '../logic.js';
+import { swapPicker } from '../swapPicker.js';
 import { goalProfile } from '../goals.js';
 import {
   FAMILY_LABEL, FOCUS_LABEL, GROUP_LABEL, familyOf, generateWorkout, notesFrom, pastWorkouts, planFromTemplate, sessionFocus,
-  setsSummary, suggestNext, swapItem, toItems, type Family, type FocusKey, type GenerateInput, type PlanItem, type Suggestion,
+  planItem, setsSummary, suggestNext, toItems, type Family, type FocusKey, type GenerateInput, type PlanItem, type Suggestion,
 } from '../planlogic.js';
 import { $, fmtNum, fmtShort, fullName, html, Raw, relDay, today, uid } from '../util.js';
 
@@ -213,10 +214,11 @@ export async function newSession({ root, query }: Ctx) {
     const sw = el.closest('[data-swap]') as HTMLElement | null;
     if (sw) {
       const i = Number(sw.dataset.swap);
-      swappedOut.push(genItems[i].exerciseId);
-      seed++;
-      const next = swapItem(genInput(), genItems, i);
-      if (next) genItems[i] = next;
+      const cur = exMap.get(genItems[i].exerciseId)!;
+      const pick = await swapPicker({ current: cur, exMap, sessions, guidance: g, who: c.firstName, inWorkout: genItems.map((p) => p.exerciseId) });
+      if (!pick) return;
+      swappedOut.push(cur.id);
+      genItems[i] = { ...planItem(pick, sessions, 'Swapped in', goal), flags: [] };
       set('gen', genSlot());
       return;
     }

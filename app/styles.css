@@ -237,7 +237,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--pink); outline: 
 .notes li { padding: 10px 12px; border-radius: var(--radius); font-size: .95rem; }
 .notes li.review { background: var(--review-bg); color: var(--review-ink); }
 .notes li.info { background: var(--good-bg); color: var(--good-ink); }
-.flagged { margin-top: 12px; }
+details.flagged { margin-top: 12px; }
 .flagged summary, .chart-table summary, .measure-log summary, .watch-inline summary { cursor: pointer; font-weight: 700; color: var(--pink-ink); padding: 6px 0; }
 .tag-reasons { padding-left: 18px; margin: 8px 0 0; display: grid; gap: 8px; font-size: .95rem; }
 .level b { font-family: var(--display); font-size: 1.15rem; }
@@ -518,6 +518,14 @@ dialog.picker[open] { display: flex; flex-direction: column; }
   .sec-head > * + *, .ideas li > * + *, .picker-foot > * + *, .pick-list.checks label > * + * { margin-left: 10px; }
   .move-fields > * { margin-bottom: 8px; }
 }
+
+/* ---------- swap sheet ---------- */
+.pick-head { font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 10px 12px 4px; }
+.small-sub { font-size: .85rem; margin: 2px 0 0; }
+.swap-btn { margin-right: 2px; }
+.swap .pick-list button { gap: 1px; }
+/* The global input rule sets width: 100%, which with the side margins made picker search boxes overflow. */
+dialog.picker .search { width: calc(100% - 32px) !important; align-self: center; }
 
 /* ---------- workout planner ---------- */
 .goal-box { background: var(--blush); border-radius: var(--radius); padding: 10px 12px; margin: 8px 0 4px; font-size: .92rem; }

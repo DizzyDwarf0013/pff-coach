@@ -341,23 +341,48 @@ export function generateWorkout(inp: GenerateInput): Generated {
   return { items: chosen, skippedFlagged, avoided: Array.from(avoided), template };
 }
 
-/** Swap one exercise in a generated plan for another in the same group. */
-export function swapItem(inp: GenerateInput, current: PlanItem[], index: number): PlanItem | undefined {
-  const target = current[index];
-  const exclude = new Set([...(inp.exclude || []), ...current.map((c) => c.exerciseId)]);
-  const goal = inp.goal;
-  const pool = Array.from(inp.exMap.values()).filter((e) => muscleGroup(e) === target.group && !exclude.has(e.id) && !flagsFor(e, inp.guidance).length);
-  if (!pool.length) return undefined;
-  const rand = rng(inp.seed);
-  const done = pastWorkouts(inp.sessions);
-  const lastDone = new Map<string, string>();
-  for (const s of done) for (const it of s.items) if (!lastDone.has(it.exerciseId) && it.sets.some(filled)) lastDone.set(it.exerciseId, s.date);
-  const bonus = (e: Exercise) => !goal ? 0 : (goal.tags.some((t) => e.tags.includes(t)) ? 1.5 : 0) + (goal.preferLoaded && e.measure === 'weight_reps' ? 1.5 : 0) + (namedInGoals(e.name, goal) ? 2 : 0);
-  const pick = pool.map((e) => ({ e, s: (lastDone.has(e.id) ? 2 : 1) + (e.custom ? 0.5 : 0) + bonus(e) + rand() * 3 })).sort((a, b) => b.s - a.s)[0].e;
-  const last = lastSets(inp.sessions, pick.id);
-  const p = last ? progressSets(last.sets, pick, goal) : { sets: [] as SetEntry[] };
-  const days = lastDone.has(pick.id) ? daysBetween(lastDone.get(pick.id)!, inp.todayIso) : undefined;
-  return { exerciseId: pick.id, sets: p.sets.length ? p.sets : freshSets(pick, goal), group: target.group, why: days === undefined ? 'New for her' : days >= 21 ? `Back after ${Math.round(days / 7)} weeks` : 'Swapped in', bumped: p.bumped, flags: [] };
+/** A plan entry for one exercise: her latest numbers (progressed where earned), or goal-based starting sets. */
+export function planItem(e: Exercise, sessions: Session[], why: string, goal?: GoalProfile): PlanItem {
+  const last = lastSets(sessions, e.id);
+  const p = last ? progressSets(last.sets, e, goal) : { sets: [] as SetEntry[] };
+  return { exerciseId: e.id, sets: p.sets.length ? p.sets : freshSets(e, goal), group: muscleGroup(e), why, bumped: p.bumped, flags: [] };
+}
+
+export interface SwapOption {
+  ex: Exercise;
+  /** works the same muscle group as the exercise being swapped */
+  similar: boolean;
+  /** intake reasons to review (shown, not hidden: she's the trainer and decides) */
+  flags: string[];
+  last?: { sets: SetEntry[]; date: string };
+  timesDone: number;
+  /** shared movement words and equipment with the exercise being swapped */
+  close: number;
+}
+
+/**
+ * Everything she could swap to, best first: same muscle group before the rest, then exercises her
+ * intake doesn't flag, then the closest movement (a deadlift for a deadlift), then ones she has done
+ * (most often first, so her numbers are known), then alphabetical. Exercises already in the workout are left out.
+ */
+const GENERIC = new Set(['machine', 'dumbbell', 'dumbbells', 'cable', 'barbell', 'banded', 'band', 'seated', 'single', 'standing', 'plate', 'loaded', 'plate-loaded', 'with', 'arm', 'leg', 'side', 'lying']);
+const keyWords = (name: string) => name.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 2 && !GENERIC.has(w));
+/** How alike two exercises are by name (shared movement words like "deadlift", "row", "press") and equipment. */
+export function closeness(a: Exercise, b: Exercise): number {
+  const mine = new Set(keyWords(a.name));
+  const shared = keyWords(b.name).filter((w) => mine.has(w)).length;
+  return shared + (a.equipment && a.equipment === b.equipment ? 0.5 : 0);
+}
+
+export function swapOptions(current: Exercise, exMap: Map<string, Exercise>, sessions: Session[], g: ClientGuidance, inWorkout: string[]): SwapOption[] {
+  const group = muscleGroup(current);
+  const skip = new Set([current.id, ...inWorkout]);
+  const times = new Map<string, number>();
+  for (const s of pastWorkouts(sessions)) for (const it of s.items) if (it.sets.some(filled)) times.set(it.exerciseId, (times.get(it.exerciseId) || 0) + 1);
+  return Array.from(exMap.values()).filter((e) => !skip.has(e.id)).map((ex) => {
+    const last = lastSets(sessions, ex.id);
+    return { ex, similar: muscleGroup(ex) === group, flags: flagsFor(ex, g), last: last ? { sets: last.sets, date: last.date } : undefined, timesDone: times.get(ex.id) || 0, close: closeness(current, ex) };
+  }).sort((a, b) => Number(b.similar) - Number(a.similar) || (a.flags.length ? 1 : 0) - (b.flags.length ? 1 : 0) || b.close - a.close || b.timesDone - a.timesDone || a.ex.name.localeCompare(b.ex.name));
 }
 
 export const toItems = (plan: PlanItem[]): SessionItem[] => plan.map((p) => ({ exerciseId: p.exerciseId, sets: p.sets.map((s) => ({ ...s })), notes: '' }));
