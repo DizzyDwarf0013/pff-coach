@@ -43,7 +43,7 @@ function draw(el: HTMLElement) {
   const spec: ChartSpec = JSON.parse(el.dataset.chart!);
   const W = Math.max(260, el.clientWidth);
   const H = spec.height ?? 200;
-  const pad = { l: 44, r: 16, t: 14, b: 26 };
+  const pad = { l: 44, r: 16, t: 26, b: 26 }; // room at the top for the last value's label
   const all = spec.series.flatMap((s) => s.points);
   const ys = all.map((p) => p.y).concat(spec.ref ? [spec.ref.y] : []);
   let lo = Math.min(...ys), hi = Math.max(...ys);
