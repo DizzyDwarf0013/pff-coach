@@ -89,4 +89,4 @@ On a report or workout sheet, tap **Print or save PDF**. In the print preview, t
 1. **Automated reminders and promotions.** Scheduled email and text sends to opted-in clients only, with unsubscribe handling. Texts need a provider such as Twilio and the usual opt-in rules.
 2. **Website import.** Pull new sign-ups from OfferingTree automatically if it offers an API or webhook. If not, CSV export plus the existing import works today.
 3. **Group fitness.** Class planner, history and move suggestions are done (1.3). Still open: a printable class sheet and suggestions that rotate class types across the week.
-4. **Suggestions.** Next-session suggestions and generated workouts for personal training are done (1.4). Still open: using goals from the intake to shape them.
+4. **Suggestions.** Next-session suggestions and generated workouts for personal training, shaped by intake goals, are done (1.4).
