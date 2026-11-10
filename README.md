@@ -9,7 +9,7 @@ A trainer app for Pink Fitness Florida and private clients that installs on iPho
 - **Sessions.** Each exercise shows its sets of weight and reps with "last time" numbers beside them, a nudge to add load when every set reached 12 or more reps, the post-session questions from the log, and autosave. You can plan a workout ahead, repeat the last one, or start a planned one.
 - **Planning a workout (1.4).** Start session and Plan a workout open on four ways to begin:
   - **Suggested.** What's due next from how they rotate (upper, lower, full-body or core days, done least recently) and their weekly schedule (a kind of day they nearly always do on that weekday). It's built from their latest workout of that kind, or the one before last if they always train the same kind, with their latest numbers and weight added where every set reached 12+ reps. Notes from that day (yours, their feedback, their least favorite, exercise notes) and anything their intake now flags are shown.
-  - **Generate a new workout.** Pick a focus and how many exercises. It keeps their one or two staple lifts for that focus so progress carries on, fills the rest of their usual layout with exercises they haven't done lately or hasn't tried, and leaves out anything flagged by their intake or marked least favorite recently. Shuffle the whole mix, or swap or remove single exercises before using it.
+  - **Generate a new workout.** Pick a focus and how many exercises. It keeps their one or two staple lifts for that focus so progress carries on, fills the rest of their usual layout with exercises they haven't done lately or haven't tried, and leaves out anything flagged by their intake or marked least favorite recently. Shuffle the whole mix, or swap or remove single exercises before using it.
   - **Repeat a past workout.** Any of their last 15, filterable by kind of day, using their latest numbers.
   - **Start from scratch.**
   - **Goals (1.4).** Their intake goals and the "In their words" box shape all of the above. Gain strength: 8-rep targets, weight goes up once every set reaches 10, loadable exercises preferred. Lose weight: 12-rep targets (15 before adding weight) and a low-impact cardio finisher. Maintain current or pregnancy: the load is held steady. Prenatal and postpartum: a core and pelvic floor block, with prenatal-friendly and pelvic floor exercises preferred. A lift they name ("deadlift my bodyweight") is kept in when the day's focus fits, and words like back pain, posture, glutes, core, leaking or stamina tilt the picks. The plan screen shows their goals and what they change. The in-session "try more weight" hint follows the same rule.
@@ -76,7 +76,7 @@ A custom address such as `coach.pinkfitnessflorida.com` can be added under the r
 
 ## Printing and PDFs on iOS
 
-On a report or workout sheet, tap **Print or save PDF**. In the print preview, tap the share button to save the PDF to Files or send it in Messages or Mail.
+iPhone and iPad can't print from a Home Screen app, so on iOS **Print or save PDF** makes the PDF on the device instead (`src/pdfExport.ts`, using the vendored `app/vendor/html2canvas`, MIT). The sheet or report is drawn into Letter pages, breaking between table rows and cards, and the exercise cards start on a new page. Tap **Share, print or save** to open the share menu with Print, Save to Files, Messages and Mail. On a computer the button opens the normal print window. On phones, the on-screen sheet uses a compact layout with the sets under each exercise; the PDF always uses the full layout.
 
 ## Changing the code
 

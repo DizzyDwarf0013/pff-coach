@@ -382,7 +382,13 @@ dialog.picker[open] { display: flex; flex-direction: column; }
 .doc .chart-table { display: none; }
 .doc-table td.n { font-family: var(--display); font-weight: 800; width: 32px; }
 .doc-foot { margin-top: 28px; padding-top: 12px; border-top: 1px solid #ECE6EA; color: #7A727C; font-size: .85rem; text-align: center; }
-@media (max-width: 600px) { .doc { padding: 20px 16px; } .doc-logo { width: 72px; height: 72px; } .doc-head h1 { font-size: 1.7rem; } }
+.doc.compact { padding: 20px 14px; } .doc.compact .doc-logo { width: 72px; height: 72px; } .doc.compact .doc-head h1 { font-size: 1.7rem; }
+.sets-inline { display: none; }
+.doc.compact .table.workout th:nth-child(4), .doc.compact .table.workout th:nth-child(5), .doc.compact .table.workout td:nth-child(4), .doc.compact .table.workout td:nth-child(5) { display: none; }
+.doc.compact .sets-inline { display: block; font-weight: 700; font-size: .88rem; margin-top: 2px; }
+.doc.compact .doc-table .thumb { width: 76px; } .doc.compact .doc-table .thumb svg { width: 72px; }
+.doc.compact .doc-cards-grid { grid-template-columns: 1fr; }
+.table.workout td:nth-child(3) { white-space: normal; }
 
 @media print {
   @page { margin: 14mm; }
@@ -607,7 +613,6 @@ dialog.ex-sheet[open] { display: flex; flex-direction: column; overflow: hidden;
 .doc-cards .ex-card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .doc-cards .ex-name { font-size: 1.2rem; }
 .doc-cards .ex-body { padding: 10px 12px 12px; font-size: .9rem; }
-@media (max-width: 699px) { .doc-cards-grid { grid-template-columns: 1fr; } }
 @media print {
   .doc-cards { break-before: page; page-break-before: always; margin-top: 0; }
   .doc-cards .ex-card { break-inside: avoid; page-break-inside: avoid; }
@@ -618,6 +623,18 @@ dialog.ex-sheet[open] { display: flex; flex-direction: column; overflow: hidden;
 @supports not (inset: 0) {
   .ex-tags > *, .ex-mods > * { margin-right: 6px; margin-bottom: 6px; }
 }
+
+/* ---------- PDF pages (made on iPhone and iPad) ---------- */
+.pdf-stage { position: absolute; left: 0; top: 0; z-index: 1; background: #fff; }
+.pdf-cover { position: fixed; inset: 0; top: 0; right: 0; bottom: 0; left: 0; z-index: 2000; background: var(--page); display: grid; place-items: center; }
+.pdf-cover div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pdf-cover b { font-family: var(--display); font-size: 1.4rem; }
+.pdf-cover span { color: var(--muted); }
+.doc.pdf { border: 0; border-radius: 0; padding: 0; margin: 0; }
+.doc.pdf .doc-cards { margin-top: 0; }
+.doc.pdf .doc-cards-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+.doc.pdf .doc-cards .ex-body { font-size: 12.5px; }
+.doc.pdf .doc-cards .ex-name { font-size: 18px; }
 
 /* ---------- sync status ---------- */
 .sync-line[data-tone="ok"] { color: var(--good-ink); }

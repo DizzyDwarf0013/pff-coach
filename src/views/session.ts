@@ -330,6 +330,6 @@ export function sessionSheetRows(s: Session, exMap: Map<string, Exercise>): Raw 
     if (!e) return '';
     const sets = it.sets.filter(filled);
     const cues = shortCues(e);
-    return html`<tr><td class="n">${n + 1}</td><td class="thumb">${art(e, false)}</td><td><b>${e.name}</b>${cues ? html`<br><span class="cue">${cues}</span>` : ''}${it.notes ? html`<br><span class="muted">${it.notes}</span>` : ''}</td><td>${sets.length || it.sets.length} sets</td><td>${sets.map((x) => setLabel(x, e.measure)).join(', ') || '—'}</td></tr>`;
+    return html`<tr><td class="n">${n + 1}</td><td class="thumb">${art(e, false)}</td><td><b>${e.name}</b>${cues ? html`<br><span class="cue">${cues}</span>` : ''}${it.notes ? html`<br><span class="muted">${it.notes}</span>` : ''}<span class="sets-inline">${sets.length || it.sets.length} sets${sets.length ? `: ${sets.map((x) => setLabel(x, e.measure)).join(', ')}` : ''}</span></td><td>${sets.length || it.sets.length} sets</td><td>${sets.map((x) => setLabel(x, e.measure)).join(', ') || '—'}</td></tr>`;
   })}`;
 }

@@ -10,6 +10,10 @@ import { chart, hydrateCharts } from '../charts.js';
 import { PREVIEW, addDays, fmtDate, fmtNum, fmtSeconds, fullName, html, Raw, toast, today } from '../util.js';
 import { sessionSheetRows } from './session.js';
 import { cardHtml } from './exerciseCard.js';
+import { isIOS, printOrPdf } from '../pdfExport.js';
+
+/** Phones get a compact layout; PDFs and printing always use the full one. */
+const fitDoc = (root: HTMLElement) => { const d = root.querySelector('.doc'); if (d) d.classList.toggle('compact', window.innerWidth < 700); };
 
 function brandHeader(branded: boolean, settings: Settings, title: string, sub: string): Raw {
   if (branded) {
@@ -47,7 +51,7 @@ function controls(branded: boolean, extra: Raw = html``): Raw {
         <button class="btn" data-act="text">Send as text</button>
         ${PREVIEW ? '' : html`<button class="btn primary" data-act="print">Print or save PDF</button>`}
       </div>
-      <p class="fineprint">${PREVIEW ? 'Print and PDF are turned off in this preview. In the installed app, Print or save PDF opens the print sheet.' : 'On iPhone or iPad, tap Print, then the share button in the print preview to save the PDF or send it.'}</p>
+      <p class="fineprint">${PREVIEW ? 'Print and PDF are turned off in this preview. In the installed app, Print or save PDF opens the print sheet.' : isIOS() ? 'Makes a PDF on this device, then opens the share menu with Print, Save to Files, Messages and Mail.' : 'Opens the print window, where you can also save as PDF.'}</p>
     </div>`;
 }
 
@@ -132,7 +136,7 @@ export async function progressReport({ root, params, query, mounted }: Ctx) {
   root.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
     if (!b) return;
-    if (b.dataset.act === 'print') window.print();
+    if (b.dataset.act === 'print') printOrPdf(root.querySelector('.doc') as HTMLElement, `${c.firstName} progress report.pdf`, `${c.firstName}'s progress`, b as HTMLButtonElement);
     if (b.dataset.act === 'text') {
       const lines = [
         `${c.firstName}'s progress (${sub})`,
@@ -146,7 +150,7 @@ export async function progressReport({ root, params, query, mounted }: Ctx) {
       shareText(`${c.firstName}'s progress`, lines.join('\n'));
     }
   });
-  mounted(() => hydrateCharts(root));
+  mounted(() => { hydrateCharts(root); fitDoc(root); });
 }
 
 export async function sessionSheet({ root, params, query }: Ctx) {
@@ -169,13 +173,14 @@ export async function sessionSheet({ root, params, query }: Ctx) {
       ${s.trainerNotes && planned ? html`<section class="doc-note"><h2>Notes</h2><p>${s.trainerNotes}</p></section>` : ''}
       ${brandFooter(branded, settings)}
       ${includeCards ? html`
-        <section class="doc-cards">
+        <section class="doc-cards" data-page-break>
           <h2 class="doc-cards-head">How to do each exercise</h2>
           <div class="doc-cards-grid">${uniqueExercises.map((e) => cardHtml(e))}</div>
           ${brandFooter(branded, settings)}
         </section>` : ''}
     </article>`.value;
 
+  fitDoc(root);
   root.addEventListener('change', (e) => {
     const t = e.target as HTMLInputElement;
     if (t.name === 'brand') { history.replaceState(null, '', here({ brand: t.value })); refresh(); }
@@ -184,7 +189,7 @@ export async function sessionSheet({ root, params, query }: Ctx) {
   root.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;
     if (!b) return;
-    if (b.dataset.act === 'print') window.print();
+    if (b.dataset.act === 'print') printOrPdf(root.querySelector('.doc') as HTMLElement, `${c.firstName} ${planned ? 'workout' : 'session'} ${s.date}.pdf`, title, b as HTMLButtonElement);
     if (b.dataset.act === 'text') {
       const lines = [`${title}, ${fmtDate(s.date, { weekday: 'long', month: 'short', day: 'numeric' })}`, ''];
       s.items.forEach((it, n) => {
