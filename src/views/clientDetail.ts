@@ -2,7 +2,8 @@
 import type { Ctx } from '../router.js';
 import { refresh } from '../router.js';
 import * as db from '../db.js';
-import type { Client, Exercise, Measurement, Session } from '../types.js';
+import type { ClassPlan, Client, Exercise, Measurement, Session } from '../types.js';
+import { className } from '../classlogic.js';
 import { avatar, empty, number, pffBadge, text, topbar } from '../components.js';
 import { exerciseSeries, exercisesUsed, filled, guidance, measureUnit, stageLabel } from '../logic.js';
 import { chart, hydrateCharts } from '../charts.js';
@@ -14,12 +15,13 @@ import {
 export async function clientDetail({ root, params, query, mounted }: Ctx) {
   const c = await db.getClient(params.id);
   if (!c) { root.innerHTML = (html`${topbar('Client not found', { back: '/clients', backLabel: 'Clients' })}${empty('Client not found', 'She may have been deleted.')}`).value; return; }
-  const [sessions, measures, exMap] = await Promise.all([db.sessionsFor(c.id), db.measurementsFor(c.id), db.exercises()]);
+  const [sessions, measures, exMap, classList] = await Promise.all([db.sessionsFor(c.id), db.measurementsFor(c.id), db.exercises(), db.allClasses()]);
+  const classes = new Map(classList.map((k) => [k.id, k]));
   const tab = query.get('tab') || 'overview';
   const stage = stageLabel(c);
 
   const tabs: [string, string][] = [['overview', 'Overview'], ['sessions', `Sessions${sessions.length ? ` (${sessions.filter((s) => s.status !== 'planned').length})` : ''}`], ['progress', 'Progress']];
-  const body = tab === 'sessions' ? sessionsTab(c, sessions, exMap) : tab === 'progress' ? progressTab(c, sessions, measures, exMap, query.get('ex')) : overviewTab(c, sessions, measures, exMap);
+  const body = tab === 'sessions' ? sessionsTab(c, sessions, exMap, classes) : tab === 'progress' ? progressTab(c, sessions, measures, exMap, query.get('ex')) : overviewTab(c, sessions, measures, exMap, classes);
 
   root.innerHTML = html`
     ${topbar(fullName(c), {
@@ -51,14 +53,15 @@ export async function clientDetail({ root, params, query, mounted }: Ctx) {
 }
 
 // ---------- overview ----------
-function overviewTab(c: Client, sessions: Session[], measures: Measurement[], exMap: Map<string, Exercise>): Raw {
+function overviewTab(c: Client, sessions: Session[], measures: Measurement[], exMap: Map<string, Exercise>, classes: Map<string, ClassPlan>): Raw {
   const g = guidance(c);
   const i = c.intake;
   const done = sessions.filter((s) => s.status === 'complete');
   const latest = [...measures].reverse().find((m) => m.weight);
   const latestMuscle = [...measures].reverse().find((m) => m.musclePct);
   const flagged = Array.from(exMap.values()).filter((e) => e.tags.some((t) => g.flags.has(t)));
-  const upcoming = sessions.filter((s) => s.status === 'planned' && s.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const upcoming = sessions.filter((s) => !s.classId && s.status === 'planned' && s.date >= today()).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const nextClass = sessions.filter((s) => s.classId && s.status === 'planned' && s.date >= today() && classes.has(s.classId)).sort((a, b) => a.date.localeCompare(b.date))[0];
   const inProgress = sessions.find((s) => s.status === 'in_progress');
   const showWeight = i.eatingDisorderHistory !== 'yes';
 
@@ -68,6 +71,7 @@ function overviewTab(c: Client, sessions: Session[], measures: Measurement[], ex
   return html`
     ${inProgress ? html`<a class="resume" href="#/sessions/${inProgress.id}"><b>Session in progress</b><span>Started ${relDay(inProgress.date).toLowerCase()}. Tap to pick up where you left off.</span></a>` : ''}
     ${upcoming ? html`<a class="resume planned" href="#/sessions/${upcoming.id}"><b>Planned workout ${relDay(upcoming.date).toLowerCase()}</b><span>${upcoming.items.length} exercises ready to go.</span></a>` : ''}
+    ${nextClass ? html`<a class="resume planned" href="#/classes/${nextClass.classId}"><b>Group class ${relDay(nextClass.date).toLowerCase()}</b><span>${className(classes.get(nextClass.classId!)!)}</span></a>` : ''}
 
     <div class="stats">
       <div><span class="stat">${done.length}</span><span class="stat-label">sessions logged</span></div>
@@ -125,11 +129,21 @@ function overviewTab(c: Client, sessions: Session[], measures: Measurement[], ex
 }
 
 // ---------- sessions ----------
-function sessionsTab(c: Client, sessions: Session[], exMap: Map<string, Exercise>): Raw {
+function sessionsTab(c: Client, sessions: Session[], exMap: Map<string, Exercise>, classes: Map<string, ClassPlan>): Raw {
   if (!sessions.length) return empty('No sessions yet', 'Start a session to log her first workout, or plan one ahead of time.', html`<a class="btn primary" href="#/sessions/new?client=${c.id}">Start session</a>`);
   const planned = sessions.filter((s) => s.status === 'planned').sort((a, b) => a.date.localeCompare(b.date));
   const rest = sessions.filter((s) => s.status !== 'planned');
   const row = (s: Session) => {
+    const k = s.classId ? classes.get(s.classId) : undefined;
+    if (k) return html`
+      <li><a class="row" href="#/classes/${k.id}">
+        <span class="date-chip"><b>${new Date(s.date + 'T00:00').getDate()}</b>${new Date(s.date + 'T00:00').toLocaleDateString(undefined, { month: 'short' })}</span>
+        <span class="row-main">
+          <span class="row-title"><span class="badge class">Class</span> ${className(k)}</span>
+          <span class="row-sub">${[relDay(s.date), k.title && k.format ? k.format : '', `${k.exercises.length} moves`, k.durationMin ? `${k.durationMin} min` : ''].filter(Boolean).join(' · ')}</span>
+        </span>
+        <span class="chev" aria-hidden="true">›</span>
+      </a></li>`;
     const names = s.items.map((it) => exMap.get(it.exerciseId)?.name).filter(Boolean) as string[];
     const sets = s.items.reduce((a, it) => a + it.sets.filter(filled).length, 0);
     return html`

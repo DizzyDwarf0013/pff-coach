@@ -10,7 +10,10 @@ A trainer app for Pink Fitness Florida and private clients that installs on iPho
 - **Progress.** Charts for weight (with the goal line), muscle %, body fat, and waist, plus a strength chart per exercise (heaviest set and estimated 1-rep max) and a personal bests table. Weight after a session feeds the charts automatically.
 - **Reports and workout sheets.** Pink Fitness clients get the logo and pink layout; private clients get an unbranded version with only the trainer's name. Either can be printed or saved as a PDF, or sent as a text. If the intake reports an eating disorder history, weight is left off by default.
 - **Notebook import (1.1).** Photograph notebook pages or choose PDFs. Each page is read by Claude on a Supabase server into clients, sessions, measurements and group class plans. She reviews everything (names matched to existing clients, dates, sessions already logged, new exercises) before it's saved. Needs sign-in.
-- **Classes (1.1).** Group class plans imported from notebooks, by month. Planning new classes comes next.
+- **Classes (1.3).** Plan group classes: date, start time, length, type and name, who's coming, and the workout in sections (warm-up, workout, cool-down) with sets/reps or time and easier and harder options for each move. Each attendee gets the class filed in her log (planned until it's marked as taught, then in her history); taking someone off removes it from her log, and deleting the class removes it everywhere. Exercises that conflict with an attendee's intake are flagged with her name.
+  - **Build from past classes.** Repeat the last class of the same type or name, bring back one that hasn't been taught in a few weeks, or browse and search every past class. *Plan one like this* on any class starts a copy.
+  - **Ideas.** Once a type or name is set, moves from similar past classes are suggested, favorites that haven't been used lately first, with a note when the plan repeats much of the last one. Notebook-imported class plans count as history.
+  - Class entries in a client's log open the class; they aren't offered as private workouts to repeat or start.
 - **Client list import.** Bring in a client CSV exported from the website or a spreadsheet. Name, email, phone, and marketing opt-in columns are detected automatically, and duplicates are skipped.
 - **Exercises.** 55 starter exercises tagged for care (lying on back, impact, core pressure, and so on), with the ability to add her own.
 - **Backup.** Download a backup and restore it on another device.
@@ -72,11 +75,11 @@ On a report or workout sheet, tap **Print or save PDF**. In the print preview, t
 - The server function lives in `supabase/functions/extract/`. Test it with `node --experimental-strip-types supabase/functions/extract/handler.test.ts`.
 - `app/vendor/pdfjs/` is Mozilla's pdf.js (Apache-2.0), used to turn PDF pages into images in the browser.
 - **Older iPads.** The app runs on iOS 12 and later (for example an iPad mini 2, 3 or 4). The TypeScript compiles to ES2019, `src/compat.ts` fills in missing browser features (dialogs, `structuredClone`, `File.text()`), and `styles.css` has fallbacks at the end for older Safari. Avoid newer syntax in `index.html`'s inline script. Reading PDFs needs a recent iOS; photos work everywhere. If the app can't start, it shows a message with the error and the iOS version instead of a blank page.
-- The data model is in `src/types.ts`, intake rules are in `src/logic.ts`, and the exercise catalog is in `src/seed.ts`.
+- The data model is in `src/types.ts`, intake rules are in `src/logic.ts`, class suggestions and filing are in `src/classlogic.ts`, and the exercise catalog is in `src/seed.ts`.
 
 ## Phase 2 roadmap
 
 1. **Automated reminders and promotions.** Scheduled email and text sends to opted-in clients only, with unsubscribe handling. Texts need a provider such as Twilio and the usual opt-in rules.
 2. **Website import.** Pull new sign-ups from OfferingTree automatically if it offers an API or webhook. If not, CSV export plus the existing import works today.
-3. **Group fitness.** Class planner, class catalog, history of planned classes, and suggestions that rotate formats and avoid repeating recent workouts.
+3. **Group fitness.** Class planner, history and move suggestions are done (1.3). Still open: a printable class sheet and suggestions that rotate class types across the week.
 4. **Suggestions.** Next-session suggestions for personal training based on history, goals, and intake flags.

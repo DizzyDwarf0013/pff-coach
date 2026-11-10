@@ -1,6 +1,7 @@
 // IndexedDB storage with an in-memory fallback (for sandboxed previews where IndexedDB is blocked).
 import type { ClassPlan, Client, Exercise, Measurement, Session, Settings } from './types.js';
 import { DEFAULT_SETTINGS } from './types.js';
+import { classFilingChanges } from './classlogic.js';
 
 type StoreName = 'clients' | 'sessions' | 'measurements' | 'exercises' | 'classes' | 'meta' | 'outbox';
 const STORES: StoreName[] = ['clients', 'sessions', 'measurements', 'exercises', 'classes', 'meta', 'outbox'];
@@ -182,6 +183,28 @@ export function invalidateExercises() { exerciseCache = null; }
 export async function allClasses(): Promise<ClassPlan[]> {
   const list = await all<ClassPlan>('classes');
   return list.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Saves a class plan and files it in each attendee's log (and removes it from anyone taken off). */
+export async function saveClass(p: ClassPlan) {
+  await put('classes', p);
+  await fileClass(p);
+}
+export async function fileClass(p: ClassPlan) {
+  const [sessions, clients] = await Promise.all([all<Session>('sessions'), all<Client>('clients')]);
+  const filed = sessions.filter((s) => s.classId === p.id);
+  const { put: puts, del: dels } = classFilingChanges(p, filed, new Set(clients.map((c) => c.id)), new Date().toISOString());
+  if (puts.length) await putMany('sessions', puts);
+  for (const id of dels) await del('sessions', id);
+}
+/** Deletes a class plan and its entries in client logs. */
+export async function deleteClass(id: string) {
+  const sessions = await all<Session>('sessions');
+  for (const s of sessions) if (s.classId === id) await del('sessions', s.id);
+  await del('classes', id);
+}
+export async function classSessions(classId: string): Promise<Session[]> {
+  return (await all<Session>('sessions')).filter((s) => s.classId === classId);
 }
 
 export async function getSettings(): Promise<Settings> {

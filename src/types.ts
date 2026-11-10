@@ -100,6 +100,8 @@ export interface Session {
     feedback?: string;
   };
   trainerNotes?: string;
+  /** Set when this entry was filed from a group class; the class plan is the source of truth. */
+  classId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -116,13 +118,26 @@ export interface Measurement {
   sessionId?: string;
 }
 
+export interface ClassMove { exerciseId?: string; name: string; section?: string; detail?: string; regression?: string; progression?: string }
+
 export interface ClassPlan {
   id: string;
   date: string;
+  /** "HH:MM", optional */
+  time?: string;
+  /** the class name, e.g. "Mommy & Me Strength" */
   title?: string;
+  /** the type of class, e.g. "Strength", "HIIT", "Prenatal" */
   format?: string;
-  exercises: { exerciseId?: string; name: string; section?: string; detail?: string; regression?: string; progression?: string }[];
+  durationMin?: number;
+  /** clients who are coming (planned) or came (taught); each gets the class filed in her log */
+  attendeeIds?: string[];
+  /** imported classes have no status and count as taught */
+  status?: 'planned' | 'taught';
+  exercises: ClassMove[];
   notes?: string;
+  /** the class this one was built from */
+  basedOn?: string;
   source?: 'import' | 'manual';
   createdAt: string;
   updatedAt: string;

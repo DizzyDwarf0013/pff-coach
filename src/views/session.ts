@@ -2,7 +2,7 @@
 import type { Ctx } from '../router.js';
 import { go } from '../router.js';
 import * as db from '../db.js';
-import type { Client, Exercise, Session, SessionItem, SetEntry } from '../types.js';
+import type { Exercise, Session, SessionItem, SetEntry } from '../types.js';
 import { avatar, empty, topbar } from '../components.js';
 import { filled, flagsFor, guidance, lastPerformance, lastSummary, progressionHint, setLabel, type ClientGuidance } from '../logic.js';
 import { $, $$, confirmDialog, debounce, fmtShort, fullName, html, num, Raw, relDay, toast, today, uid } from '../util.js';
@@ -33,9 +33,10 @@ export async function newSession({ root, query }: Ctx) {
   const c = await db.getClient(clientId);
   if (!c) { go('/sessions/new', true); return; }
   const sessions = await db.sessionsFor(c.id);
-  const last = sessions.find((s) => s.status !== 'planned' && s.items.length);
-  const plannedToday = sessions.filter((s) => s.status === 'planned').sort((a, b) => Math.abs(+new Date(a.date) - Date.now()) - Math.abs(+new Date(b.date) - Date.now()))[0];
-  const inProgress = sessions.find((s) => s.status === 'in_progress');
+  const own = sessions.filter((s) => !s.classId); // group classes aren't private workouts to repeat or start
+  const last = own.find((s) => s.status !== 'planned' && s.items.length);
+  const plannedToday = own.filter((s) => s.status === 'planned').sort((a, b) => Math.abs(+new Date(a.date) - Date.now()) - Math.abs(+new Date(b.date) - Date.now()))[0];
+  const inProgress = own.find((s) => s.status === 'in_progress');
 
   const options: Raw[] = [];
   if (!plan && inProgress) options.push(html`<button class="choice" data-choice="resume"><b>Pick up the session in progress</b><span>Started ${relDay(inProgress.date).toLowerCase()}, ${inProgress.items.length} exercises</span></button>`);
@@ -71,6 +72,7 @@ export async function newSession({ root, query }: Ctx) {
 export async function sessionEditor({ root, params, query, mounted }: Ctx) {
   const s = await db.getSession(params.id);
   if (!s) { root.innerHTML = html`${topbar('Session not found', { back: '/' })}${empty('Session not found', 'It may have been deleted.')}`.value; return; }
+  if (s.classId) { go(`/classes/${s.classId}`, true); return; } // group classes are edited from the class
   const c = (await db.getClient(s.clientId))!;
   const [history, exMap] = await Promise.all([db.sessionsFor(c.id), db.exercises()]);
   const g = guidance(c);
@@ -185,7 +187,7 @@ export async function sessionEditor({ root, params, query, mounted }: Ctx) {
       if (s.items[i].sets.some(filled) && !(await confirmDialog('Remove this exercise?', 'Its logged sets will be removed from the session.', 'Remove', true))) return;
       s.items.splice(i, 1);
     } else if (act === 'add-ex') {
-      const picked = await pickExercise(exMap, g, c, s.items.map((x) => x.exerciseId));
+      const picked = await pickExercise(exMap, g, c.firstName, s.items.map((x) => x.exerciseId));
       if (!picked) return;
       const ex = picked;
       const lp = lastPerformance(others, ex.id, s.id, s.date);
@@ -292,7 +294,8 @@ async function syncMeasurement(s: Session) {
 }
 
 // ---- exercise picker ----
-function pickExercise(exMap: Map<string, Exercise>, g: ClientGuidance, c: Client, already: string[]): Promise<Exercise | null> {
+/** Exercise picker sheet. `who` names the client the flags are for; leave it empty when the reasons already name people. */
+export function pickExercise(exMap: Map<string, Exercise>, g: ClientGuidance, who: string, already: string[]): Promise<Exercise | null> {
   return new Promise((resolve) => {
     const list = Array.from(exMap.values());
     const cats = ['All', 'Lower body', 'Upper body', 'Core', 'Cardio', 'Mobility'];
@@ -312,7 +315,7 @@ function pickExercise(exMap: Map<string, Exercise>, g: ClientGuidance, c: Client
           return html`<li data-cat="${e.category}" data-name="${e.name.toLowerCase()}">
             <button type="button" data-pick="${e.id}" class="${f.length ? 'flagged' : ''}">
               <span class="pick-name">${e.name}${already.includes(e.id) ? html` <span class="muted">· added</span>` : ''}</span>
-              <span class="pick-sub">${f.length ? html`<span class="flag-text">Review for ${c.firstName}: ${f[0]}</span>` : e.equipment}</span>
+              <span class="pick-sub">${f.length ? html`<span class="flag-text">Review${who ? ` for ${who}` : ''}: ${f[0]}</span>` : e.equipment}</span>
             </button></li>`;
         })}
       </ul>

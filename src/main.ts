@@ -12,7 +12,7 @@ import { progressReport, sessionSheet } from './views/report.js';
 import { exerciseForm, exerciseList } from './views/exercises.js';
 import { settingsView } from './views/settings.js';
 import { importView } from './views/import.js';
-import { classDetail, classList } from './views/classes.js';
+import { classDetail, classEditor, classList } from './views/classes.js';
 import { consumeRedirect } from './auth.js';
 import { startAutoSync } from './sync.js';
 
@@ -31,7 +31,9 @@ route('/exercises/:id', 'exercises', exerciseForm);
 route('/settings', 'settings', settingsView);
 route('/import', 'clients', importView);
 route('/classes', 'classes', classList);
+route('/classes/new', 'classes', classEditor);
 route('/classes/:id', 'classes', classDetail);
+route('/classes/:id/edit', 'classes', classEditor);
 
 async function start() {
   document.documentElement.classList.add('booted');
@@ -45,7 +47,7 @@ async function start() {
   // Show changes from her other device, but never re-render a screen she might be typing on.
   document.addEventListener('sync-applied', () => {
     const path = currentPath().split('?')[0];
-    if (/^\/$|^\/clients$|^\/clients\/[^/]+$|^\/classes(\/[^/]+)?$|^\/exercises$/.test(path) && path !== '/clients/new') refresh();
+    if (/^\/$|^\/clients$|^\/clients\/[^/]+$|^\/classes(\/[^/]+)?$|^\/exercises$/.test(path) && path !== '/clients/new' && path !== '/classes/new') refresh();
   });
   if (!PREVIEW) startAutoSync();
   if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window.self) {
