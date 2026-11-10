@@ -9,6 +9,7 @@ import { exerciseSeries, exercisesUsed, filled, setLabel } from '../logic.js';
 import { chart, hydrateCharts } from '../charts.js';
 import { PREVIEW, addDays, fmtDate, fmtNum, fmtSeconds, fullName, html, Raw, toast, today } from '../util.js';
 import { sessionSheetRows } from './session.js';
+import { cardHtml } from './exerciseCard.js';
 
 function brandHeader(branded: boolean, settings: Settings, title: string, sub: string): Raw {
   if (branded) {
@@ -87,9 +88,9 @@ export async function progressReport({ root, params, query, mounted }: Ctx) {
 
   const periodSel = html`
     <label class="field"><span class="label">Period</span>
-      <select name="period">${[['all', 'Since she started'], ['90', 'Last 90 days'], ['30', 'Last 30 days']].map(([v, l]) => html`<option value="${v}" ${v === period ? new Raw('selected') : ''}>${l}</option>`)}</select>
+      <select name="period">${[['all', 'Since they started'], ['90', 'Last 90 days'], ['30', 'Last 30 days']].map(([v, l]) => html`<option value="${v}" ${v === period ? new Raw('selected') : ''}>${l}</option>`)}</select>
     </label>
-    <label class="toggle"><span><span class="label">Include body weight</span>${c.intake.eatingDisorderHistory === 'yes' ? html`<span class="hint">Off by default for her, based on her intake.</span>` : ''}</span><input type="checkbox" role="switch" name="w" ${includeWeight ? new Raw('checked') : ''}></label>
+    <label class="toggle"><span><span class="label">Include body weight</span>${c.intake.eatingDisorderHistory === 'yes' ? html`<span class="hint">Off by default for them, based on their intake.</span>` : ''}</span><input type="checkbox" role="switch" name="w" ${includeWeight ? new Raw('checked') : ''}></label>
     <label class="field wide"><span class="label">Note to ${c.firstName}</span><textarea name="note" rows="3" placeholder="What you're proud of, and what's next">${c.reportNote || ''}</textarea></label>`;
 
   root.innerHTML = html`
@@ -155,20 +156,30 @@ export async function sessionSheet({ root, params, query }: Ctx) {
   const branded = query.has('brand') ? query.get('brand') === 'pff' : c.isPinkFitness;
   const planned = s.status === 'planned';
   const title = planned ? `${c.firstName}'s workout` : `${c.firstName}'s session`;
+  const includeCards = query.get('cards') !== '0';
+  const uniqueExercises = Array.from(new Set(s.items.map((it) => it.exerciseId))).map((id) => exMap.get(id)).filter(Boolean) as Exercise[];
+  const here = (o: Record<string, string>) => { const q = new URLSearchParams(query); Object.entries(o).forEach(([k, v]) => q.set(k, v)); return `#/sessions/${s.id}/sheet?${q}`; };
 
   root.innerHTML = html`
-    <div class="no-print">${topbar(planned ? 'Share workout plan' : 'Share session', { back: `/sessions/${s.id}`, backLabel: 'Session' })}${controls(branded)}</div>
+    <div class="no-print">${topbar(planned ? 'Share workout plan' : 'Share session', { back: `/sessions/${s.id}`, backLabel: 'Session' })}${controls(branded, html`<label class="toggle sheet-cards-toggle"><span><span class="label">Include exercise cards</span><span class="hint">Adds pages after the workout showing how to do each exercise.</span></span><input type="checkbox" role="switch" name="cards" ${includeCards ? new Raw('checked') : ''}></label>`)}</div>
     <article class="doc ${branded ? 'is-branded' : 'is-plain'}">
       ${brandHeader(branded, settings, title, fmtDate(s.date, { weekday: 'long', month: 'long', day: 'numeric' }))}
-      <table class="table doc-table workout"><thead><tr><th>#</th><th>Exercise</th><th>Sets</th><th>${planned ? 'Target' : 'Done'}</th></tr></thead>
+      <table class="table doc-table workout"><thead><tr><th>#</th><th><span class="sr">Picture</span></th><th>Exercise</th><th>Sets</th><th>${planned ? 'Target' : 'Done'}</th></tr></thead>
         <tbody>${sessionSheetRows(s, exMap)}</tbody></table>
       ${s.trainerNotes && planned ? html`<section class="doc-note"><h2>Notes</h2><p>${s.trainerNotes}</p></section>` : ''}
       ${brandFooter(branded, settings)}
+      ${includeCards ? html`
+        <section class="doc-cards">
+          <h2 class="doc-cards-head">How to do each exercise</h2>
+          <div class="doc-cards-grid">${uniqueExercises.map((e) => cardHtml(e))}</div>
+          ${brandFooter(branded, settings)}
+        </section>` : ''}
     </article>`.value;
 
   root.addEventListener('change', (e) => {
     const t = e.target as HTMLInputElement;
-    if (t.name === 'brand') { history.replaceState(null, '', `#/sessions/${s.id}/sheet?brand=${t.value}`); refresh(); }
+    if (t.name === 'brand') { history.replaceState(null, '', here({ brand: t.value })); refresh(); }
+    if (t.name === 'cards') { history.replaceState(null, '', here({ cards: t.checked ? '1' : '0' })); refresh(); }
   });
   root.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('[data-act]') as HTMLElement | null;

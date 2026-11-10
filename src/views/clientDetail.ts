@@ -14,7 +14,7 @@ import {
 
 export async function clientDetail({ root, params, query, mounted }: Ctx) {
   const c = await db.getClient(params.id);
-  if (!c) { root.innerHTML = (html`${topbar('Client not found', { back: '/clients', backLabel: 'Clients' })}${empty('Client not found', 'She may have been deleted.')}`).value; return; }
+  if (!c) { root.innerHTML = (html`${topbar('Client not found', { back: '/clients', backLabel: 'Clients' })}${empty('Client not found', 'They may have been deleted.')}`).value; return; }
   const [sessions, measures, exMap, classList] = await Promise.all([db.sessionsFor(c.id), db.measurementsFor(c.id), db.exercises(), db.allClasses()]);
   const classes = new Map(classList.map((k) => [k.id, k]));
   const tab = query.get('tab') || 'overview';
@@ -86,20 +86,20 @@ function overviewTab(c: Client, sessions: Session[], measures: Measurement[], ex
         <ul class="notes">${g.notes.map((n) => html`<li class="${n.kind}">${n.text}</li>`)}</ul>
         ${flagged.length ? html`
           <details class="flagged">
-            <summary>${flagged.length} exercises in the catalog are flagged for her</summary>
+            <summary>${flagged.length} exercises in the catalog are flagged for them</summary>
             <ul class="tag-reasons">
               ${Array.from(g.flags.entries()).map(([tag, reason]) => html`<li><b>${TAGS[tag] || tag}</b> ${reason}<br><span class="muted">${flagged.filter((e) => e.tags.includes(tag)).map((e) => e.name).join(', ')}</span></li>`)}
             </ul>
           </details>` : ''}
-        <p class="fineprint">Prompts from her intake to support your judgment, not medical advice.</p>
-      ` : html`<p class="muted">Nothing flagged from her intake.</p>`}
+        <p class="fineprint">Prompts from their intake to support your judgment, not medical advice.</p>
+      ` : html`<p class="muted">Nothing flagged from their intake.</p>`}
     </section>
 
     ${g.level ? html`
       <section class="card">
         <h2>Suggested starting point</h2>
         <p class="level"><b>${g.level.name}.</b> ${g.level.detail}</p>
-        <p class="fineprint">Based on her weekly workouts, how hard she trains, and daily activity.</p>
+        <p class="fineprint">Based on their weekly workouts, how hard they train, and daily activity.</p>
       </section>` : ''}
 
     <section class="card">
@@ -120,7 +120,7 @@ function overviewTab(c: Client, sessions: Session[], measures: Measurement[], ex
         ['Daily calories', i.calories ? fmtNum(i.calories, 0) : ''],
         ['On this diet for', i.dietDuration],
         ['Goals', i.goals],
-        ['In her words', i.specificGoals],
+        ['In their words', i.specificGoals],
         ['Emergency contact', [i.emergencyName, i.emergencyPhone].filter(Boolean).join(', ')],
         ['Notes', c.notes],
       ])}
@@ -130,7 +130,7 @@ function overviewTab(c: Client, sessions: Session[], measures: Measurement[], ex
 
 // ---------- sessions ----------
 function sessionsTab(c: Client, sessions: Session[], exMap: Map<string, Exercise>, classes: Map<string, ClassPlan>): Raw {
-  if (!sessions.length) return empty('No sessions yet', 'Start a session to log her first workout, or plan one ahead of time.', html`<a class="btn primary" href="#/sessions/new?client=${c.id}">Start session</a>`);
+  if (!sessions.length) return empty('No sessions yet', 'Start a session to log their first workout, or plan one ahead of time.', html`<a class="btn primary" href="#/sessions/new?client=${c.id}">Start session</a>`);
   const planned = sessions.filter((s) => s.status === 'planned').sort((a, b) => a.date.localeCompare(b.date));
   const rest = sessions.filter((s) => s.status !== 'planned');
   const row = (s: Session) => {
@@ -173,7 +173,7 @@ function progressTab(c: Client, sessions: Session[], measures: Measurement[], ex
   usedEx.sort((a, b) => (used.get(b.id)! - used.get(a.id)!) || a.name.localeCompare(b.name));
   const sel = (exId && exMap.get(exId)) || usedEx[0];
 
-  let strength: Raw = empty('No lifts logged yet', 'Strength charts appear once she has logged sets.');
+  let strength: Raw = empty('No lifts logged yet', 'Strength charts appear once they have logged sets.');
   if (sel) {
     const series = exerciseSeries(sessions, sel);
     const unit = measureUnit(sel);
@@ -212,7 +212,7 @@ function progressTab(c: Client, sessions: Session[], measures: Measurement[], ex
         </div>
         <div class="row-end"><button type="button" class="btn ghost" data-act="cancel-measure">Cancel</button><button class="btn primary">Save measurement</button></div>
       </form>
-      ${!showWeight ? html`<p class="fineprint">Body weight is hidden for her. Her intake asks to keep the focus on strength.</p>` : ''}
+      ${!showWeight ? html`<p class="fineprint">Body weight is hidden for them. Their intake asks to keep the focus on strength.</p>` : ''}
       <div class="chart-grid">
         ${showWeight ? html`<div><h3>Weight</h3>${chart({ title: 'Weight', unit: 'lb', series: [{ label: 'Weight', style: 'primary', points: w }], ref: c.intake.goalWeight ? { y: c.intake.goalWeight, label: 'Goal' } : undefined })}</div>` : ''}
         <div><h3>Muscle</h3>${chart({ title: 'Muscle', unit: '%', series: [{ label: 'Muscle', style: 'primary', points: mu }] })}</div>
@@ -277,7 +277,7 @@ function bindProgress(root: HTMLElement, c: Client) {
   root.addEventListener('click', async (e) => {
     const b = (e.target as HTMLElement).closest('[data-del-measure]') as HTMLElement | null;
     if (!b) return;
-    if (!(await confirmDialog('Delete this measurement?', 'It will be removed from her charts.', 'Delete', true))) return;
+    if (!(await confirmDialog('Delete this measurement?', 'It will be removed from their charts.', 'Delete', true))) return;
     await db.del('measurements', b.dataset.delMeasure!);
     refresh();
   });

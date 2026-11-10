@@ -61,6 +61,19 @@ export interface Client {
 
 export type Measure = 'weight_reps' | 'reps' | 'time';
 
+/** What an exercise card shows. Any field set here overrides the built-in library text. */
+export interface ExerciseCard {
+  /** picture (movement template key) */
+  t?: string;
+  steps?: string[];
+  cues?: string[];
+  breathe?: string;
+  easier?: string;
+  harder?: string;
+  /** pregnancy note */
+  preg?: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;
@@ -70,6 +83,8 @@ export interface Exercise {
   tags: string[];
   cues?: string;
   custom?: boolean;
+  /** her edits to the exercise card */
+  card?: ExerciseCard;
 }
 
 export interface SetEntry {

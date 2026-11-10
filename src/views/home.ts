@@ -43,8 +43,8 @@ export async function home({ root }: Ctx) {
   root.innerHTML = html`
     ${topbar(`${greeting}${name ? `, ${name}` : ''}`, { sub: html`${new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${signedIn ? html` · ${syncLine()}` : ''}` })}
     <div class="quick">
-      <a class="quick-btn primary" href="#/sessions/new"><b>Start session</b><span>Log sets as she trains</span></a>
-      <a class="quick-btn" href="#/sessions/new?plan=1"><b>Plan a workout</b><span>Build it ahead, share it with her</span></a>
+      <a class="quick-btn primary" href="#/sessions/new"><b>Start session</b><span>Log sets as they train</span></a>
+      <a class="quick-btn" href="#/sessions/new?plan=1"><b>Plan a workout</b><span>Build it ahead, share it with them</span></a>
       <a class="quick-btn" href="#/classes/new"><b>Plan a class</b><span>Build a group class, pick who's coming</span></a>
       <a class="quick-btn" href="#/clients/new"><b>New client</b><span>Setup and intake</span></a>
     </div>
@@ -52,7 +52,7 @@ export async function home({ root }: Ctx) {
     ${!clients.length ? html`
       <section class="card welcome">
         <h2>Welcome to PFF Coach</h2>
-        <p>Start by adding a client and filling in her intake. You can also import a client list from the website under Settings.</p>
+        <p>Start by adding a client and filling in their intake. You can also import a client list from the website under Settings.</p>
         <p>Want to look around first? Load two sample clients with twelve weeks of sessions. You can remove them in Settings.</p>
         <div class="row-end"><button class="btn" data-act="sample">Load sample clients</button><a class="btn primary" href="#/clients/new">Add a client</a></div>
       </section>` : ''}

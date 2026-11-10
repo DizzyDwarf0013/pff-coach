@@ -16,6 +16,7 @@ import { importView } from './views/import.js';
 import { classDetail, classEditor, classList } from './views/classes.js';
 import { consumeRedirect } from './auth.js';
 import { startAutoSync } from './sync.js';
+import { bindCardTaps } from './views/exerciseCard.js';
 
 route('/', 'today', home);
 route('/clients', 'clients', clientsList);
@@ -44,6 +45,7 @@ async function start() {
   if (!db.persistent) document.body.classList.add('no-storage');
   // Ask the browser not to evict data (granted automatically for Home Screen apps on iOS).
   try { await navigator.storage?.persist?.(); } catch { /* not supported */ }
+  bindCardTaps();
   await render();
   // Show changes from her other device, but never re-render a screen she might be typing on.
   document.addEventListener('sync-applied', () => {

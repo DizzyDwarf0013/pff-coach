@@ -8,6 +8,7 @@ import type { Exercise, Session } from '../types.js';
 import { avatar, empty, topbar } from '../components.js';
 import { guidance } from '../logic.js';
 import { swapPicker } from '../swapPicker.js';
+import { cardLink } from './exerciseCard.js';
 import { goalProfile } from '../goals.js';
 import {
   FAMILY_LABEL, FOCUS_LABEL, GROUP_LABEL, familyOf, generateWorkout, notesFrom, pastWorkouts, planFromTemplate, sessionFocus,
@@ -81,7 +82,7 @@ export async function newSession({ root, query }: Ctx) {
     return html`
       <li>
         <span class="plan-main">
-          <b>${ex.name}</b>
+          <b>${cardLink(ex, ex.name, { flags: p.flags, who: c.firstName })}</b>
           <span class="plan-sub">${[setsSummary(p.sets, ex), GROUP_LABEL[p.group]].join(' · ')}${p.bumped ? html` <span class="badge up">↑ ${fmtNum(p.bumped.from)} → ${fmtNum(p.bumped.to)} lb</span>` : ''}${p.why && !p.why.startsWith('Ready') ? html` <span class="badge why">${p.why}</span>` : ''}</span>
           ${p.flags.length ? html`<span class="move-flag">Review for ${c.firstName}: ${p.flags[0]}</span>` : ''}
         </span>
@@ -92,16 +93,16 @@ export async function newSession({ root, query }: Ctx) {
   const suggestSlot = (): Raw => {
     if (!sug) return html`
       <h2>Suggested workout</h2>
-      <p class="muted">Once ${c.firstName} has a few sessions logged, the app suggests what's due next from how she rotates her workouts, with her latest numbers. Until then, generate one below or start from scratch.</p>`;
+      <p class="muted">Once ${c.firstName} has a few sessions logged, the app suggests what's due next from how they rotate their workouts, with their latest numbers. Until then, generate one below or start from scratch.</p>`;
     const notes = notesFrom(sug.template, exMap);
     const flagged = sugPlan.filter((p) => p.flags.length).length;
     return html`
       <div class="card-head"><h2>Suggested: ${FOCUS_LABEL[sug.focus]}</h2><span class="badge">${relDay(date) === 'Today' ? 'for today' : `for ${relDay(date).toLowerCase()}`}</span></div>
       <p class="why">${sug.reasons.join(' ')}</p>
       <ul class="plan-list">${sugPlan.map((p, i) => row(p, i, false))}</ul>
-      ${sugPlan.some((p) => p.bumped) ? html`<p class="fineprint">↑ She hit ${goal.bumpAt}+ reps on every set last time, so the weight goes up and reps reset to ${goal.resetTo}.</p>` : ''}
-      ${goal.bumpAt === null ? html`<p class="fineprint">Her goals hold the load steady, so the weights stay where they were.</p>` : ''}
-      ${flagged ? html`<p class="repeat-note">${flagged === 1 ? 'One exercise is' : `${flagged} exercises are`} now flagged by her intake. Freshen it up to swap ${flagged === 1 ? 'it' : 'them'} out, or adjust after starting.</p>` : ''}
+      ${sugPlan.some((p) => p.bumped) ? html`<p class="fineprint">↑ They hit ${goal.bumpAt}+ reps on every set last time, so the weight goes up and reps reset to ${goal.resetTo}.</p>` : ''}
+      ${goal.bumpAt === null ? html`<p class="fineprint">Their goals hold the load steady, so the weights stay where they were.</p>` : ''}
+      ${flagged ? html`<p class="repeat-note">${flagged === 1 ? 'One exercise is' : `${flagged} exercises are`} now flagged by their intake. Freshen it up to swap ${flagged === 1 ? 'it' : 'them'} out, or adjust after starting.</p>` : ''}
       ${notes.length ? html`<details class="last-notes"><summary>Notes from ${fmtShort(sug.template.date)}</summary><ul>${notes.map((n) => html`<li>${n}</li>`)}</ul></details>` : ''}
       <div class="row-end">
         <button class="btn" data-act="freshen">Freshen it up</button>
@@ -111,18 +112,18 @@ export async function newSession({ root, query }: Ctx) {
 
   const goalBox = (): Raw => goal.labels.length || goal.words ? html`
       <div class="goal-box">
-        <p><b>Her goals:</b> ${goal.labels.join(', ') || 'none picked'}${goal.words ? html` · <span class="muted">“${goal.words}”</span>` : ''}</p>
+        <p><b>Their goals:</b> ${goal.labels.join(', ') || 'none picked'}${goal.words ? html` · <span class="muted">“${goal.words}”</span>` : ''}</p>
         ${goal.effects.length ? html`<p class="goal-effects">What that changes: ${goal.effects.join('; ')}.</p>` : ''}
-      </div>` : html`<p class="goal-box muted">No goals on her intake yet. <a href="#/clients/${c.id}/edit">Add them</a> and suggestions will follow them: rep targets, when to add weight, a finisher or a core block, and anything she names in her own words.</p>`;
+      </div>` : html`<p class="goal-box muted">No goals on their intake yet. <a href="#/clients/${c.id}/edit">Add them</a> and suggestions will follow them: rep targets, when to add weight, a finisher or a core block, and anything they name in their own words.</p>`;
 
   const genSlot = (): Raw => html`
     <h2>Generate a new workout</h2>
-    <p class="muted">Keeps her staple lifts so progress carries on, brings in exercises she hasn't done lately or hasn't tried, and leaves out anything flagged by her intake or that she marked least favorite recently.</p>
+    <p class="muted">Keeps their staple lifts so progress carries on, brings in exercises they haven't done lately or haven't tried, and leaves out anything flagged by their intake or that they marked least favorite recently.</p>
     ${goalBox()}
     <div class="pills gen-focus">${foci.map((f) => html`<button type="button" class="pill ${f === genFocus ? 'on' : ''}" data-focus="${f}">${FOCUS_LABEL[f]}</button>`)}</div>
     <div class="gen-row">
       <span class="label">Exercises</span>
-      <span class="stepper"><button class="icon-btn" data-count="-1" aria-label="Fewer exercises">−</button><b>${genCount || (gen ? genItems.length : 'Her usual')}</b><button class="icon-btn" data-count="1" aria-label="More exercises">+</button></span>
+      <span class="stepper"><button class="icon-btn" data-count="-1" aria-label="Fewer exercises">−</button><b>${genCount || (gen ? genItems.length : 'Their usual')}</b><button class="icon-btn" data-count="1" aria-label="More exercises">+</button></span>
       <span class="spacer"></span>
       <button class="btn ${gen ? '' : 'primary'}" data-act="generate">${gen ? 'Shuffle' : 'Generate'}</button>
     </div>
@@ -130,8 +131,8 @@ export async function newSession({ root, query }: Ctx) {
       <ul class="plan-list">${genItems.map((p, i) => row(p, i, true))}</ul>
       ${!genItems.length ? html`<p class="muted">Nothing fits that focus yet. Add exercises to the catalog or pick another focus.</p>` : ''}
       <p class="fineprint">${[
-        gen.template ? `Shaped like her ${FOCUS_LABEL[genFocus].toLowerCase()} workout on ${fmtShort(gen.template.date)}.` : `She hasn't done a ${FOCUS_LABEL[genFocus].toLowerCase()} workout yet, so this uses a standard layout.`,
-        gen.skippedFlagged ? 'Exercises flagged by her intake were left out.' : '',
+        gen.template ? `Shaped like their ${FOCUS_LABEL[genFocus].toLowerCase()} workout on ${fmtShort(gen.template.date)}.` : `They haven't done a ${FOCUS_LABEL[genFocus].toLowerCase()} workout yet, so this uses a standard layout.`,
+        gen.skippedFlagged ? 'Exercises flagged by their intake were left out.' : '',
         gen.avoided.length ? `Left out recent least favorites: ${gen.avoided.map((id) => exMap.get(id)?.name).filter(Boolean).join(', ')}.` : '',
       ].filter(Boolean).join(' ')}</p>
       ${genItems.length ? html`<div class="row-end"><button class="btn primary" data-act="use-gen">${plan ? 'Plan this workout' : 'Start this workout'}</button></div>` : ''}` : ''}`;
@@ -142,7 +143,7 @@ export async function newSession({ root, query }: Ctx) {
     const list = past.filter((s) => pastFilter === 'all' || familyOf(sessionFocus(s, exMap)) === pastFilter).slice(0, 15);
     return html`
       <h2 class="list-head">Repeat a past workout</h2>
-      <p class="fineprint past-hint">Uses her latest numbers for each exercise, with weight added where she earned it.</p>
+      <p class="fineprint past-hint">Uses their latest numbers for each exercise, with weight added where they earned it.</p>
       ${fams.length > 1 ? html`<div class="pills past-filter"><button type="button" class="pill ${pastFilter === 'all' ? 'on' : ''}" data-fam="all">All</button>${fams.map((f) => html`<button type="button" class="pill ${pastFilter === f ? 'on' : ''}" data-fam="${f}">${FAMILY_LABEL[f].charAt(0).toUpperCase() + FAMILY_LABEL[f].slice(1)}</button>`)}</div>` : ''}
       <ul class="list">${list.map((s) => {
         const names = s.items.map((it) => exMap.get(it.exerciseId)?.name).filter(Boolean) as string[];
@@ -175,7 +176,7 @@ export async function newSession({ root, query }: Ctx) {
     go(`/sessions/${s.id}${blank ? '?add=1' : ''}`, true);
   };
   const regenerate = (shuffle = false) => {
-    const avoid = shuffle ? genItems.filter((p) => !p.why.startsWith('Her staple')).map((p) => p.exerciseId) : [];
+    const avoid = shuffle ? genItems.filter((p) => !p.why.startsWith('Their staple')).map((p) => p.exerciseId) : [];
     gen = generateWorkout({ ...genInput(), avoid });
     genItems = gen.items.map((p) => ({ ...p, flags: [] }));
     set('gen', genSlot());

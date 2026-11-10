@@ -234,7 +234,7 @@ function applyProfile(intake: Intake, p: XProfile | null, onlyEmpty: boolean): {
     const text = loose.join('; ');
     i.specificGoals = i.specificGoals ? (i.specificGoals.includes(text) ? i.specificGoals : `${i.specificGoals}\n${text}`) : text;
   }
-  if (p.age && !p.dob) extra.push(`Age ${p.age} when noted in her notebook.`);
+  if (p.age && !p.dob) extra.push(`Age ${p.age} when noted in the notebook.`);
   if (p.notes) extra.push(p.notes);
   return { intake: i, extraNotes: extra };
 }

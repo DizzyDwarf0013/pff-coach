@@ -25,9 +25,9 @@ export function swapPicker(opts: {
       <li data-name="${o.ex.name.toLowerCase()}" data-similar="${o.similar ? '1' : ''}">
         <button type="button" data-pick="${o.ex.id}" class="${o.flags.length ? 'flagged' : ''}">
           <span class="pick-name">${o.ex.name}</span>
-          <span class="pick-sub">${o.last ? `Last: ${setsSummary(o.last.sets, o.ex)} · ${fmtShort(o.last.date)}` : o.timesDone ? '' : `New for ${who || 'her'}`}${!o.similar ? ` · ${GROUP_LABEL[muscleGroup(o.ex)]}` : ''}</span>
+          <span class="pick-sub">${o.last ? `Last: ${setsSummary(o.last.sets, o.ex)} · ${fmtShort(o.last.date)}` : o.timesDone ? '' : `New for ${who || 'them'}`}${!o.similar ? ` · ${GROUP_LABEL[muscleGroup(o.ex)]}` : ''}</span>
           ${o.flags.length ? html`<span class="flag-text">Review${who ? ` for ${who}` : ''}: ${o.flags[0]}</span>` : ''}
-        </button></li>`;
+        </button><button type="button" class="info-btn" data-card="${o.ex.id}" aria-label="How to do ${o.ex.name}">i</button></li>`;
     dlg.innerHTML = html`
       <div class="picker-head">
         <div><h2>Swap ${current.name}</h2><p class="muted small-sub">Showing ${group.toLowerCase()} options. Search for anything else.</p></div>

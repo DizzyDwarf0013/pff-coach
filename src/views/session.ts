@@ -7,6 +7,7 @@ import { empty, topbar } from '../components.js';
 import { filled, flagsFor, guidance, lastPerformance, lastSummary, progressionHint, setLabel, type ClientGuidance } from '../logic.js';
 import { goalProfile } from '../goals.js';
 import { swapPicker } from '../swapPicker.js';
+import { art, cardLink, shortCues } from './exerciseCard.js';
 import { $, $$, confirmDialog, debounce, fullName, html, num, Raw, toast, today, uid } from '../util.js';
 
 export async function sessionEditor({ root, params, query, mounted }: Ctx) {
@@ -46,7 +47,7 @@ export async function sessionEditor({ root, params, query, mounted }: Ctx) {
           <ul class="notes">${g.notes.map((n) => html`<li class="${n.kind}">${n.text}</li>`)}</ul></details>` : ''}
 
       <ol class="items">
-        ${s.items.map((it, i) => itemCard(it, i, s, exMap.get(it.exerciseId), others, g, bumpAt))}
+        ${s.items.map((it, i) => itemCard(it, i, s, exMap.get(it.exerciseId), others, g, bumpAt, c.firstName))}
       </ol>
       <button class="btn add-ex" data-act="add-ex">Add exercise</button>
 
@@ -177,7 +178,7 @@ export async function sessionEditor({ root, params, query, mounted }: Ctx) {
   mounted(() => { if (query.get('add') === '1' && !s.items.length) ($('[data-act="add-ex"]', root) as HTMLButtonElement)?.click(); });
 }
 
-function itemCard(it: SessionItem, i: number, s: Session, ex: Exercise | undefined, others: Session[], g: ClientGuidance, bumpAt: number | null): Raw {
+function itemCard(it: SessionItem, i: number, s: Session, ex: Exercise | undefined, others: Session[], g: ClientGuidance, bumpAt: number | null, who: string): Raw {
   if (!ex) return html`<li class="item card"><p>This exercise was removed from the catalog.</p><button class="btn small danger ghost" data-act="del-ex" data-i="${i}">Remove</button></li>`;
   const flags = flagsFor(ex, g);
   const last = lastSummary(others, ex, s.id, s.date);
@@ -187,7 +188,7 @@ function itemCard(it: SessionItem, i: number, s: Session, ex: Exercise | undefin
   return html`
     <li class="item card">
       <div class="item-head">
-        <h3>${ex.name}</h3>
+        <h3>${cardLink(ex, ex.name, { flags, who })}</h3>
         <div class="item-tools">
           <button class="btn small ghost swap-btn" data-act="swap" data-i="${i}" aria-label="Swap ${ex.name} for another exercise">Swap</button>
           <button class="icon-btn" data-act="up" data-i="${i}" aria-label="Move ${ex.name} up" ${i === 0 ? new Raw('disabled') : ''}>↑</button>
@@ -226,12 +227,12 @@ function postSection(s: Session, exMap: Map<string, Exercise>): Raw {
       <div class="grid">
         <label class="field"><span class="label">Weight</span><span class="unit-wrap"><input inputmode="decimal" data-post="weight" value="${s.post.weight ?? ''}"><span class="unit">lb</span></span></label>
         <label class="field"><span class="label">Muscle</span><span class="unit-wrap"><input inputmode="decimal" data-post="musclePct" value="${s.post.musclePct ?? ''}"><span class="unit">%</span></span></label>
-        <fieldset class="field wide"><legend class="label">How hard did it feel to her?</legend>
+        <fieldset class="field wide"><legend class="label">How hard did it feel to them?</legend>
           <div class="seg">${[['light', 'Light'], ['moderate', 'Moderate'], ['intense', 'Intense']].map(([v, l]) => html`<label><input type="radio" name="intensity" value="${v}" ${s.post.intensity === v ? new Raw('checked') : ''}><span>${l}</span></label>`)}</div>
         </fieldset>
         <label class="field"><span class="label">Favorite exercise</span><select data-post="favorite">${opts(s.post.favorite)}</select></label>
         <label class="field"><span class="label">Least favorite</span><select data-post="leastFavorite">${opts(s.post.leastFavorite)}</select></label>
-        <label class="field wide"><span class="label">Anything she liked, or wishes you did differently?</span><textarea data-post="feedback" rows="2">${s.post.feedback || ''}</textarea></label>
+        <label class="field wide"><span class="label">Anything they liked, or wish you did differently?</span><textarea data-post="feedback" rows="2">${s.post.feedback || ''}</textarea></label>
         <label class="field wide"><span class="label">Your notes</span><textarea data-meta="trainerNotes" rows="2">${s.trainerNotes || ''}</textarea></label>
       </div>
     </section>`;
@@ -270,7 +271,7 @@ export function pickExercise(exMap: Map<string, Exercise>, g: ClientGuidance, wh
             <button type="button" data-pick="${e.id}" class="${f.length ? 'flagged' : ''}">
               <span class="pick-name">${e.name}${already.includes(e.id) ? html` <span class="muted">· added</span>` : ''}</span>
               <span class="pick-sub">${f.length ? html`<span class="flag-text">Review${who ? ` for ${who}` : ''}: ${f[0]}</span>` : e.equipment}</span>
-            </button></li>`;
+            </button><button type="button" class="info-btn" data-card="${e.id}" aria-label="How to do ${e.name}">i</button></li>`;
         })}
       </ul>
       <form class="quick-add">
@@ -328,6 +329,7 @@ export function sessionSheetRows(s: Session, exMap: Map<string, Exercise>): Raw 
     const e = exMap.get(it.exerciseId);
     if (!e) return '';
     const sets = it.sets.filter(filled);
-    return html`<tr><td class="n">${n + 1}</td><td><b>${e.name}</b>${it.notes ? html`<br><span class="muted">${it.notes}</span>` : ''}</td><td>${sets.length || it.sets.length} sets</td><td>${sets.map((x) => setLabel(x, e.measure)).join(', ') || '—'}</td></tr>`;
+    const cues = shortCues(e);
+    return html`<tr><td class="n">${n + 1}</td><td class="thumb">${art(e, false)}</td><td><b>${e.name}</b>${cues ? html`<br><span class="cue">${cues}</span>` : ''}${it.notes ? html`<br><span class="muted">${it.notes}</span>` : ''}</td><td>${sets.length || it.sets.length} sets</td><td>${sets.map((x) => setLabel(x, e.measure)).join(', ') || '—'}</td></tr>`;
   })}`;
 }

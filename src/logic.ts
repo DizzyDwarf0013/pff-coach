@@ -55,20 +55,20 @@ export function guidance(c: Client): ClientGuidance {
 
   if (m.status === 'pregnant') {
     const w = pregnancyWeeks(m.dueDate);
-    if (w === undefined) notes.push({ kind: 'review', text: 'Add her due date so the app can track weeks of pregnancy.' });
+    if (w === undefined) notes.push({ kind: 'review', text: 'Add their due date so the app can track weeks of pregnancy.' });
     if (w === undefined || w >= 13) {
       flag('supine', 'After the first trimester, limit time lying flat on the back. Try an incline or side-lying option.');
       flag('prone', 'Lying face-down gets uncomfortable as the bump grows.');
       flag('core-flexion', 'Crunch-type flexion adds strain to the abdominal wall later in pregnancy.');
-      flag('balance', 'Her balance point is shifting. Offer support for single-leg and unstable work.');
+      flag('balance', 'Their balance point is shifting. Offer support for single-leg and unstable work.');
     }
-    flag('high-impact', 'Check impact work against how she feels and her provider\'s guidance.');
-    notes.push({ kind: 'info', text: 'Use the talk test to set intensity. She should be able to hold a conversation.' });
+    flag('high-impact', 'Check impact work against how they feel and their provider\'s guidance.');
+    notes.push({ kind: 'info', text: 'Use the talk test to set intensity. They should be able to hold a conversation.' });
   }
 
   if (m.status === 'postpartum') {
     const w = weeksPostpartum(m.deliveryDate);
-    if (w === undefined) notes.push({ kind: 'review', text: 'Add her delivery date so the app can track weeks postpartum.' });
+    if (w === undefined) notes.push({ kind: 'review', text: 'Add their delivery date so the app can track weeks postpartum.' });
     if (m.deliveryType === 'c-section') {
       notes.push({ kind: 'review', text: 'C-section delivery. Build core and lifting load gradually around the incision.' });
       if (w === undefined || w < 12) flag('core-pressure', 'Recent C-section. Progress abdominal pressure slowly.');
@@ -77,9 +77,9 @@ export function guidance(c: Client): ClientGuidance {
   }
 
   if (m.status !== 'none' && m.clearance === 'no') {
-    notes.push({ kind: 'review', text: 'She reported no medical clearance. Get clearance before progressing.' });
+    notes.push({ kind: 'review', text: 'They reported no medical clearance. Get clearance before progressing.' });
   } else if (m.status !== 'none' && m.clearance !== 'yes') {
-    notes.push({ kind: 'review', text: 'No medical clearance on file. Confirm her provider has cleared her to exercise.' });
+    notes.push({ kind: 'review', text: 'No medical clearance on file. Confirm their provider has cleared them to exercise.' });
   }
 
   if (m.diastasis === 'yes' || m.diastasis === 'unsure') {
@@ -106,7 +106,7 @@ export function guidance(c: Client): ClientGuidance {
   if (i.medical?.trim()) notes.push({ kind: 'review', text: `Medical notes: ${i.medical.trim()}` });
 
   if (i.eatingDisorderHistory === 'yes') {
-    notes.push({ kind: 'review', text: 'Keep progress focused on strength, energy and consistency. Body weight is left off her reports unless you turn it on.' });
+    notes.push({ kind: 'review', text: 'Keep progress focused on strength, energy and consistency. Body weight is left off their reports unless you turn it on.' });
   }
 
   return { notes, flags, level: startingLevel(c), stage: stageLabel(c) };

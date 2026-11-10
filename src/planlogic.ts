@@ -109,7 +109,7 @@ export function suggestNext(sessions: Session[], exMap: Map<string, Exercise>, o
     for (const f of rotation) {
       const on = done.filter((s, i) => fam[i] === f);
       const sameDay = on.filter((s) => parseDate(s.date).getDay() === wd).length;
-      if (on.length >= 3 && sameDay / on.length >= 0.7) { pick = f; reasons.push(`${cap(FAMILY_LABEL[f])} is usually her ${weekday(onDate)} workout.`); break; }
+      if (on.length >= 3 && sameDay / on.length >= 0.7) { pick = f; reasons.push(`${cap(FAMILY_LABEL[f])} is usually their ${weekday(onDate)} workout.`); break; }
     }
   }
   // rotation: the one done least recently
@@ -117,16 +117,16 @@ export function suggestNext(sessions: Session[], exMap: Map<string, Exercise>, o
     pick = [...rotation].sort((a, b) => lastIdx(b) - lastIdx(a))[0];
     if (rotation.length > 1) {
       const since = fam.slice(0, lastIdx(pick)).filter((f, i, arr) => arr.indexOf(f) === i).map((f) => FAMILY_LABEL[f]);
-      reasons.push(`She rotates ${rotation.map((f) => FAMILY_LABEL[f]).join(' and ')} days. ${cap(FAMILY_LABEL[pick])} was last on ${fmtDay(done[lastIdx(pick)].date)}${since.length ? `, with ${since.join(' and ')} since` : ''}.`);
+      reasons.push(`They rotate ${rotation.map((f) => FAMILY_LABEL[f]).join(' and ')} days. ${cap(FAMILY_LABEL[pick])} was last on ${fmtDay(done[lastIdx(pick)].date)}${since.length ? `, with ${since.join(' and ')} since` : ''}.`);
     }
   }
   const same = done.filter((s, i) => fam[i] === pick);
   let template = same[0];
   if (rotation.length === 1 && same.length >= 2 && same[0] === done[0]) {
     template = same[1];
-    reasons.push(`She mostly trains ${FAMILY_LABEL[pick]}, so this is her routine from ${fmtDay(template.date)}, which alternates with her last one.`);
+    reasons.push(`They mostly train ${FAMILY_LABEL[pick]}, so this is their routine from ${fmtDay(template.date)}, which alternates with their last one.`);
   } else if (template) {
-    reasons.push(`Built from her workout on ${fmtDay(template.date)}, including any changes made that day.`);
+    reasons.push(`Built from their workout on ${fmtDay(template.date)}, including any changes made that day.`);
   }
   return template ? { focus: sessionFocus(template, exMap), family: pick, template, reasons } : undefined;
 }
@@ -289,7 +289,7 @@ export function generateWorkout(inp: GenerateInput): Generated {
     if (i < 0) continue;
     slots.splice(i, 1);
     used.add(e.id);
-    chosen.push(itemFor(e, 'Her staple, kept so progress carries on'));
+    chosen.push(itemFor(e, 'Their staple, kept so progress carries on'));
   }
 
   // 1b. a lift she named in her goals, if today's layout has room for it
@@ -300,7 +300,7 @@ export function generateWorkout(inp: GenerateInput): Generated {
     if (named && !chosen.some((c) => liftInGoals(exMap.get(c.exerciseId)!.name, goal))) {
       slots.splice(slots.indexOf(muscleGroup(named)), 1);
       used.add(named.id);
-      chosen.push(itemFor(named, 'For her goal'));
+      chosen.push(itemFor(named, 'For their goal'));
     }
   }
 
@@ -332,8 +332,8 @@ export function generateWorkout(inp: GenerateInput): Generated {
     }).sort((a, b) => b.s - a.s);
     const { e, days } = scored[0];
     used.add(e.id);
-    const goalWhy = goal && g === 'cardio' && goal.finisher ? 'Finisher for her goal' : goal && g === 'core' && goal.coreBlock ? 'Core & pelvic floor' : '';
-    chosen.push(itemFor(e, goalWhy || (days === undefined ? 'New for her' : days >= 21 ? `Back after ${Math.round(days / 7)} weeks` : 'A change from last time')));
+    const goalWhy = goal && g === 'cardio' && goal.finisher ? 'Finisher for their goal' : goal && g === 'core' && goal.coreBlock ? 'Core & pelvic floor' : '';
+    chosen.push(itemFor(e, goalWhy || (days === undefined ? 'New for them' : days >= 21 ? `Back after ${Math.round(days / 7)} weeks` : 'A change from last time')));
   }
   // keep her usual order: big lower-body and pushing/pulling first, core last
   const order: Group[] = ['quads', 'posterior', 'push', 'pull', 'shoulders', 'core', 'cardio', 'mobility'];
@@ -407,7 +407,7 @@ export function notesFrom(s: Session, exMap: Map<string, Exercise>): string[] {
   const out: string[] = [];
   const trainer = (s.trainerNotes || '').split('\n').map((l) => l.trim()).filter((l) => l && !/^imported from notebook$/i.test(l));
   if (trainer.length) out.push(`Your notes: ${trainer.join(' ')}`);
-  if (s.post.feedback) out.push(`She said: ${s.post.feedback}`);
+  if (s.post.feedback) out.push(`They said: ${s.post.feedback}`);
   if (s.post.leastFavorite && exMap.get(s.post.leastFavorite)) out.push(`Least favorite: ${exMap.get(s.post.leastFavorite)!.name}`);
   const itemNotes = s.items.filter((i) => i.notes && exMap.has(i.exerciseId)).map((i) => `${exMap.get(i.exerciseId)!.name}: ${i.notes}`);
   out.push(...itemNotes);

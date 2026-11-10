@@ -37,7 +37,7 @@ export async function importView({ root }: Ctx) {
     root.innerHTML = html`${head}
       <section class="card">
         <h2>Sign in to import</h2>
-        ${authForm('Reading notebook pages happens on a secure server, so it needs her account. She only signs in once on each device.')}
+        ${authForm('Reading notebook pages happens on a secure server, so it needs your account. You only sign in once on each device.')}
       </section>`.value;
     bindAuthForm(root, () => refresh());
     return;
@@ -225,7 +225,7 @@ async function reviewScreen(root: HTMLElement, head: Raw, draft: ImportDraft) {
             : html`<span class="muted">${match?.isPinkFitness ? 'Pink Fitness client' : 'Private client'}</span>`}
         </div>
         ${c.writtenNames.length > 1 || (c.matchId && c.writtenNames[0] !== c.name) ? html`<p class="fineprint">Written as ${c.writtenNames.map((n) => `“${n}”`).join(', ')}</p>` : ''}
-        ${facts.length ? html`<p class="facts-line">${facts.join(' · ')}${c.matchId ? html`<br><span class="fineprint">Only fills details that are blank on her profile.</span>` : ''}</p>` : ''}
+        ${facts.length ? html`<p class="facts-line">${facts.join(' · ')}${c.matchId ? html`<br><span class="fineprint">Only fills details that are blank on their profile.</span>` : ''}</p>` : ''}
         ${c.sessions.length ? html`
           <ul class="rs-list">
             ${c.sessions.map((s) => html`
@@ -265,7 +265,7 @@ async function reviewScreen(root: HTMLElement, head: Raw, draft: ImportDraft) {
     ${review.newExercises.length ? html`
       <h2 class="list-head">New exercises for the catalog (${review.newExercises.length})</h2>
       <section class="card">
-        <p class="fineprint">These weren't in her catalog, so they'll be added. Check the category for each.</p>
+        <p class="fineprint">These weren't in your catalog, so they'll be added. Check the category for each.</p>
         <ul class="nx-list">${review.newExercises.map((x) => html`
           <li><span>${x.name}</span>
             <select data-x="${x.key}" aria-label="Category for ${x.name}">${CATS.map((cat) => html`<option ${cat === x.category ? new Raw('selected') : ''}>${cat}</option>`)}</select>

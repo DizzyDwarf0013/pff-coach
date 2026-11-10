@@ -33,7 +33,7 @@ export interface GoalProfile {
 }
 
 const WORDS: { re: RegExp; groups?: Group[]; names?: string[]; finisher?: boolean; core?: boolean; tags?: string[]; say: string }[] = [
-  { re: /\b(carry|carrying|toddler|car ?seat|stroller|(lift|pick up|picking up) (my|the|her))\b/i, groups: ['posterior', 'core'], names: ['carry', 'deadlift', 'row'], say: 'carrying and lifting' },
+  { re: /\b(carry|carrying|toddler|car ?seat|stroller|(lift|pick up|picking up) (my|the|her|his|their))\b/i, groups: ['posterior', 'core'], names: ['carry', 'deadlift', 'row'], say: 'carrying and lifting' },
   { re: /\bback (pain|ache|hurts?)|lower back\b/i, groups: ['posterior', 'core', 'pull'], names: ['bird dog', 'pallof', 'glute', 'row', 'bridge'], say: 'a stronger back' },
   { re: /\bposture\b/i, groups: ['pull'], names: ['row', 'face pull', 'pull-apart', 'rear delt'], say: 'posture' },
   { re: /\b(glutes?|booty|butt|hips?)\b/i, groups: ['posterior'], say: 'glutes' },
@@ -54,11 +54,11 @@ export function goalProfile(intake: Intake): GoalProfile {
 
   if (goals.includes('Gain strength')) {
     p.repTarget = 8; p.bumpAt = 10; p.resetTo = 8; p.preferLoaded = true;
-    say('8-rep targets, and weight goes up once she reaches 10 on every set');
-    say('favors exercises she can load and progress');
+    say('8-rep targets, and weight goes up once they reach 10 on every set');
+    say('favors exercises they can load and progress');
   }
   if (goals.includes('Lose weight')) {
-    if (!goals.includes('Gain strength')) { p.repTarget = 12; p.bumpAt = 15; p.resetTo = 12; say('12-rep targets, and weight goes up once she reaches 15 on every set'); }
+    if (!goals.includes('Gain strength')) { p.repTarget = 12; p.bumpAt = 15; p.resetTo = 12; say('12-rep targets, and weight goes up once they reach 15 on every set'); }
     p.finisher = true;
     say('ends with a short cardio finisher');
   }
@@ -78,7 +78,7 @@ export function goalProfile(intake: Intake): GoalProfile {
   }
   if (goals.includes('Maintain current') || pregnant) {
     p.bumpAt = null;
-    say(pregnant ? 'holds her load steady; progress with reps and the talk test' : 'holds her numbers steady instead of adding weight');
+    say(pregnant ? 'holds their load steady; progress with reps and the talk test' : 'holds their numbers steady instead of adding weight');
   }
 
   const words = (intake.specificGoals || '').trim();
@@ -97,7 +97,7 @@ export function goalProfile(intake: Intake): GoalProfile {
     const lifts = LIFTS.filter((l) => new RegExp(`\\b${l.replace('-', '[- ]?')}s?\\b`, 'i').test(words));
     p.lifts = lifts;
     lifts.forEach((l) => { if (!p.names.includes(l)) p.names.unshift(l); });
-    if (lifts.length) say(`keeps ${lifts.join(' and ')} in her workouts when it fits the day`);
+    if (lifts.length) say(`keeps ${lifts.join(' and ')} in their workouts when it fits the day`);
     if (hits.length) say(`leans toward ${hits.join(', ')}`);
   }
   p.tags = Array.from(new Set(p.tags));

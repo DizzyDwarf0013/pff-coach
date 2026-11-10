@@ -11,6 +11,7 @@ import {
   type GroupGuidance, type Similar,
 } from '../classlogic.js';
 import { pickExercise } from './session.js';
+import { cardLink } from './exerciseCard.js';
 import { $, $$, confirmDialog, daysBetween, debounce, fmtDate, fmtShort, fullName, html, num, parseDate, Raw, raw, relDay, toast, today, uid } from '../util.js';
 
 const SECTION_DEFAULTS = ['Warm-up', 'Workout', 'Cool-down'];
@@ -66,7 +67,7 @@ export async function classList({ root }: Ctx) {
       sub: past.length ? `${past.length} past ${past.length === 1 ? 'class' : 'classes'}` : undefined,
       actions: html`<a class="btn ghost" href="#/import">Import</a><a class="btn primary" href="#/classes/new">Plan a class</a>`,
     })}
-    ${!plans.length ? empty('No classes yet', 'Plan a class to build its workout, choose who is coming, and file it in each client\'s log. Classes from her notebooks show up here too once they\'re imported.', html`<a class="btn primary" href="#/classes/new">Plan a class</a>`) : ''}
+    ${!plans.length ? empty('No classes yet', 'Plan a class to build its workout, choose who is coming, and file it in each client\'s log. Classes from your notebooks show up here too once they\'re imported.', html`<a class="btn primary" href="#/classes/new">Plan a class</a>`) : ''}
     ${upcoming.length ? html`<h2 class="list-head">Coming up</h2><ul class="list">${upcoming.map((p) => classRow(p, relDay(p.date)))}</ul>` : ''}
     ${unmarked.length ? html`<h2 class="list-head">Not marked as taught</h2><ul class="list">${unmarked.map((p) => classRow(p, 'Planned'))}</ul>` : ''}
     ${Array.from(byMonth.entries()).map(([month, list]) => html`
@@ -99,7 +100,7 @@ function watchBlock(gg: GroupGuidance, open = false): Raw {
   return html`
     <details class="watch-inline" ${open ? raw('open') : ''}>
       <summary>Things to watch for ${gg.people.length === 1 ? gg.people[0].client.firstName : `${gg.people.length} clients`}</summary>
-      <ul class="notes">${gg.people.map((x) => html`<li><b>${x.client.firstName}${x.stage ? ` · ${x.stage}` : ''}.</b> ${x.review.join(' ') || 'Some exercises are flagged from her intake.'}</li>`)}</ul>
+      <ul class="notes">${gg.people.map((x) => html`<li><b>${x.client.firstName}${x.stage ? ` · ${x.stage}` : ''}.</b> ${x.review.join(' ') || 'Some exercises are flagged from their intake.'}</li>`)}</ul>
     </details>`;
 }
 
@@ -141,7 +142,7 @@ export async function classDetail({ root, params }: Ctx) {
           const ex = e.exerciseId ? exMap.get(e.exerciseId) : undefined;
           const flags = ex ? flagsFor(ex, gg) : [];
           return html`
-          <li><b>${e.name}</b>${e.detail ? html` <span class="muted">${e.detail}</span>` : ''}
+          <li><b>${ex ? cardLink(ex, e.name, { flags }) : e.name}</b>${e.detail ? html` <span class="muted">${e.detail}</span>` : ''}
             ${e.regression ? html`<span class="mod easier">Easier: ${e.regression}</span>` : ''}
             ${e.progression ? html`<span class="mod harder">Harder: ${e.progression}</span>` : ''}
             ${flags.length ? html`<span class="move-flag">${flags.join(' ')}</span>` : ''}
@@ -149,7 +150,7 @@ export async function classDetail({ root, params }: Ctx) {
         })}
         </ul>`)}
       ${p.notes ? html`<p class="class-notes">${p.notes}</p>` : ''}
-      ${p.source === 'import' ? html`<p class="fineprint">Imported from her notebook.</p>` : ''}
+      ${p.source === 'import' ? html`<p class="fineprint">Imported from your notebook.</p>` : ''}
     </section>
     ${attendees.length ? html`<p class="fineprint">This class is filed in ${attendees.length === 1 ? `${attendees[0].firstName}'s log` : attendees.length === 2 ? 'both clients\' logs' : `the logs of all ${attendees.length} clients`}${isTaught(p) ? '' : ' as a planned class'}.</p>` : ''}
     <div class="form-actions"><button class="btn danger ghost" data-act="delete">Delete class</button></div>`.value;
@@ -274,7 +275,7 @@ export async function classEditor({ root, params, query }: Ctx) {
       </button>`);
     return html`
       <h2>${hasMoves ? 'Rebuild from a previous class' : 'Start from a previous class'}</h2>
-      ${!withMoves ? html`<p class="muted">Once she has a few classes saved, she can build new ones from them here.</p>` : html`
+      ${!withMoves ? html`<p class="muted">Once you have a few classes saved, you can build new ones from them here.</p>` : html`
         ${choices.length ? html`<div class="choices">${choices}</div>` : (p.title || p.format) ? html`<p class="muted">No past classes match this type or name yet.</p>` : html`<p class="muted">Pick a type or name above to see matching past classes.</p>`}
         <button class="btn ${choices.length ? 'ghost' : ''} browse" data-act="browse">Browse ${withMoves === 1 ? 'the 1 past class' : `all ${withMoves} past classes`}</button>`}`;
   };
@@ -286,8 +287,8 @@ export async function classEditor({ root, params, query }: Ctx) {
     const rep = repeatsFromLast(sim, current, p.date);
     const g = gg();
     const label = p.title || p.format;
-    if (!label) return html`<h2>Ideas from past classes</h2><p class="muted">Pick a type or name to see moves she has used in classes like this one.</p>`;
-    if (!sim.length) return html`<h2>Ideas from past classes</h2><p class="muted">No past classes like “${label}” yet. Ideas appear here as she builds a history.</p>`;
+    if (!label) return html`<h2>Ideas from past classes</h2><p class="muted">Pick a type or name to see moves you've used in classes like this one.</p>`;
+    if (!sim.length) return html`<h2>Ideas from past classes</h2><p class="muted">No past classes like “${label}” yet. Ideas appear here as you build a history.</p>`;
     return html`
       <h2>Ideas from past ${label} classes</h2>
       ${rep && rep.names.length >= 3 && p.basedOn !== rep.plan.id ? html`<p class="repeat-note">${rep.names.length} of these moves were in the last one (${fmtShort(rep.plan.date)}): ${rep.names.join(', ')}. Swap a few to keep it fresh.</p>` : ''}
@@ -296,7 +297,7 @@ export async function classEditor({ root, params, query }: Ctx) {
         const flags = ex ? flagsFor(ex, g) : [];
         return html`<li>
           <span class="idea-main">
-            <b>${x.move.name}</b>${x.move.detail ? html` <span class="muted">${x.move.detail}</span>` : ''}
+            <b>${ex ? cardLink(ex, x.move.name, { flags }) : x.move.name}</b>${x.move.detail ? html` <span class="muted">${x.move.detail}</span>` : ''}
             <span class="idea-sub">${x.fresh ? html`<span class="badge fresh">Due for a comeback</span> ` : ''}In ${x.count} of the last ${x.of} · last ${fmtShort(x.lastDate)}</span>
             ${flags.length ? html`<span class="move-flag">${flags[0]}</span>` : ''}
           </span>
@@ -327,7 +328,7 @@ export async function classEditor({ root, params, query }: Ctx) {
     return html`
       <li class="move">
         <div class="item-head">
-          <h3>${m.name}</h3>
+          <h3>${ex ? cardLink(ex, m.name, { flags }) : m.name}</h3>
           <div class="item-tools">
             <button class="icon-btn" data-act="up" data-s="${si}" data-i="${i}" aria-label="Move ${m.name} up" ${si === 0 && i === 0 ? raw('disabled') : ''}>↑</button>
             <button class="icon-btn" data-act="down" data-s="${si}" data-i="${i}" aria-label="Move ${m.name} down" ${si === secs.length - 1 && i === n - 1 ? raw('disabled') : ''}>↓</button>
@@ -372,7 +373,7 @@ export async function classEditor({ root, params, query }: Ctx) {
         <div class="card-head"><h2>${isTaught(p) ? 'Who came' : 'Who\'s coming'}${att.length ? ` (${att.length})` : ''}</h2><button class="btn small" data-act="attendees">${att.length ? 'Change' : 'Add clients'}</button></div>
         ${attendeeChips()}
         ${watchBlock(g)}
-        <p class="fineprint">The class is filed in each client's log${isTaught(p) ? '' : ' as planned, and moves to her history when you mark it as taught'}.</p>
+        <p class="fineprint">The class is filed in each client's log${isTaught(p) ? '' : ' as planned, and moves to their history when you mark it as taught'}.</p>
       </section>
 
       <h2 class="list-head">Workout</h2>

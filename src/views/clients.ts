@@ -24,7 +24,7 @@ export async function clientsList({ root, query }: Ctx) {
       </div>
     </div>
     ${clients.length === 0
-      ? empty('No clients yet', 'Add her first client, or import a list from the website in Settings.', html`<a class="btn primary" href="#/clients/new">New client</a>`)
+      ? empty('No clients yet', 'Add your first client, or import a list from the website in Settings.', html`<a class="btn primary" href="#/clients/new">New client</a>`)
       : html`<ul class="list client-list">
         ${clients.filter((c) => {
           if (filter === 'inactive') return c.status === 'inactive';
@@ -69,7 +69,7 @@ const PELVIC = ['Leaking', 'Heaviness or pressure', 'Pelvic or pubic pain'];
 
 export async function clientForm({ root, params }: Ctx) {
   const existing = params.id ? await db.getClient(params.id) : undefined;
-  if (params.id && !existing) { root.innerHTML = empty('Client not found', 'She may have been deleted.').value; return; }
+  if (params.id && !existing) { root.innerHTML = empty('Client not found', 'They may have been deleted.').value; return; }
   const now = new Date().toISOString();
   const c: Client = existing || {
     id: uid(), firstName: '', lastName: '', email: '', phone: '', isPinkFitness: true, status: 'active',
@@ -99,7 +99,7 @@ export async function clientForm({ root, params }: Ctx) {
       <section class="card">
         <h2>Reminders and promotions</h2>
         ${toggle('consentEmail', 'OK to email', c.consent.email, 'Class reminders, progress reports and occasional offers.')}
-        ${toggle('consentSms', 'OK to text', c.consent.sms, 'Only check this if she agreed to texts. The date is recorded when either choice changes.')}
+        ${toggle('consentSms', 'OK to text', c.consent.sms, 'Only check this if they agreed to texts. The date is recorded when either choice changes.')}
         ${c.consent.updatedAt ? html`<p class="hint">Last updated ${c.consent.updatedAt}</p>` : ''}
       </section>
 
@@ -128,8 +128,8 @@ export async function clientForm({ root, params }: Ctx) {
           ${number('avgSteps', 'Average steps a day', i.avgSteps)}
           ${number('daysPerWeek', 'Workouts a week', i.daysPerWeek, { unit: 'days' })}
           ${number('workoutMinutes', 'Workout length', i.workoutMinutes, { unit: 'min' })}
-          ${text('workoutLocation', 'Where she works out now', i.workoutLocation)}
-          ${segmented('workoutIntensity', 'How she describes her workouts', i.workoutIntensity, [['light', 'Light'], ['moderate', 'Moderate'], ['intense', 'Intense']], { wide: true })}
+          ${text('workoutLocation', 'Where they work out now', i.workoutLocation)}
+          ${segmented('workoutIntensity', 'How they describe their workouts', i.workoutIntensity, [['light', 'Light'], ['moderate', 'Moderate'], ['intense', 'Intense']], { wide: true })}
         </div>
       </section>
 
@@ -145,7 +145,7 @@ export async function clientForm({ root, params }: Ctx) {
 
       <section class="card">
         <h2>Pregnancy and postpartum</h2>
-        ${segmented('maternalStatus', 'Right now she is', m.status, [['none', 'Neither'], ['pregnant', 'Pregnant'], ['postpartum', 'Postpartum']], { wide: true })}
+        ${segmented('maternalStatus', 'Right now they are', m.status, [['none', 'Neither'], ['pregnant', 'Pregnant'], ['postpartum', 'Postpartum']], { wide: true })}
         <div class="grid" data-when="pregnant">
           ${text('dueDate', 'Due date', m.dueDate, { type: 'date' })}
         </div>
@@ -175,7 +175,7 @@ export async function clientForm({ root, params }: Ctx) {
         <h2>Goals</h2>
         ${chips('goals', 'Main goals', i.goals, GOALS)}
         <div class="grid">
-          ${textarea('specificGoals', 'In her words', i.specificGoals, { placeholder: 'e.g. Carry my toddler up the stairs without back pain' })}
+          ${textarea('specificGoals', 'In their words', i.specificGoals, { placeholder: 'e.g. Carry my toddler up the stairs without back pain' })}
           ${textarea('notes', 'Trainer notes', c.notes, { rows: 3 })}
         </div>
       </section>
@@ -247,7 +247,7 @@ export async function clientForm({ root, params }: Ctx) {
   });
 
   $('[data-act="delete"]', root)?.addEventListener('click', async () => {
-    const ok = await confirmDialog(`Delete ${fullName(c)}?`, 'This removes her intake, every session and all progress measurements. It cannot be undone.', 'Delete client', true);
+    const ok = await confirmDialog(`Delete ${fullName(c)}?`, 'This removes their intake, every session and all progress measurements. It cannot be undone.', 'Delete client', true);
     if (!ok) return;
     await db.deleteClientCascade(c.id);
     toast('Client deleted');
